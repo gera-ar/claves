@@ -84,7 +84,7 @@ class Main(wx.Frame):
 		self.row_list= [row[0] for row in self.database.getRowList()]
 		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
-		self.listbox.SetSelection(1)
+		self.listbox.SetSelection(0)
 		vbox.Add(self.listbox, wx.ID_ANY, wx.ALL | wx.EXPAND, 10)
 
 		hbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -210,7 +210,7 @@ class DataDialog(wx.Dialog):
 		
 		wx.StaticText(panel, label="Contraseña:")
 		self.password_field= wx.TextCtrl(panel, value=password)
-		self.password_field.SetFocus()
+		self.user_field.SetFocus()
 		
 		wx.StaticText(panel, label="Fecha:")
 		self.date_field= wx.TextCtrl(panel, value=date)
