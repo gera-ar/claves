@@ -6,12 +6,14 @@ from datetime import datetime
 from configparser import ConfigParser
 from subprocess import check_output
 import accessible_output2.outputs.auto
+from time import sleep
 from pygame import mixer
 mixer.init()
 
 # Sounds:
 ADD= mixer.Sound('sounds/add.ogg')
 RECYCLE= mixer.Sound('sounds/recycle.ogg')
+EXIT= mixer.Sound('sounds/exit.ogg')
 OK= mixer.Sound('sounds/ok.ogg')
 
 def speak(message):
@@ -95,7 +97,7 @@ class Main(wx.Frame):
 				self.Show()
 
 	def passVerify(self):
-		pass_dialog= PassDialog(self, 'Acceso')
+		pass_dialog= PassDialog(self, 'Acceso', '&Ingresar')
 		pass_dialog.ShowModal()
 		if self.password == pass_dialog.password_field.GetValue():
 			OK.play()
@@ -129,7 +131,7 @@ class Main(wx.Frame):
 					key_file.write(self.key_file_content)
 			key_message= 'Ahora vamos a crear una contraseña de acceso para abrir el programa'
 			wx.MessageDialog(None, key_message, '👍: ').ShowModal()
-			pass_dialog= PassDialog(self, 'Contraseña de acceso')
+			pass_dialog= PassDialog(self, 'Configurar contraseña de acceso', '&Aceptar')
 			pass_dialog.ShowModal()
 			password= pass_dialog.password_field.GetValue().encode()
 			password_c= self.encryptStr(password)
@@ -202,6 +204,7 @@ class Main(wx.Frame):
 		add_button.Bind(wx.EVT_BUTTON, self.onAdd)
 		close_button = wx.Button(panel, label='&Cerrar')
 		close_button.Bind(wx.EVT_BUTTON, self.onClose)
+		self.Bind(wx.EVT_CLOSE, self.onExit)
 
 		hbox.Add(modify_button)
 		hbox.Add(delete_button)
@@ -210,6 +213,11 @@ class Main(wx.Frame):
 		vbox.Add(hbox, wx.ID_ANY, wx.ALL | wx.CENTER, 10)
 
 		panel.SetSizer(vbox)
+
+	def onExit(self, event):
+		EXIT.play()
+		sleep(0.2)
+		self.Destroy()
 
 	def onModify(self, event):
 		self.database.cursor.execute('SELECT * FROM data WHERE service=?', (self.listbox.GetStringSelection(),))
@@ -259,6 +267,7 @@ class Main(wx.Frame):
 
 	def onClose(self, event):
 		self.database.encrypt()
+		EXIT.play()
 		self.Close()
 
 	def onKeyDown(self, event):
@@ -343,7 +352,7 @@ class DataDialog(wx.Dialog):
 			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
 
 class PassDialog(wx.Dialog):
-	def __init__(self, parent, title):
+	def __init__(self, parent, title, text_button):
 		super().__init__(parent, title=title)
 
 		panel = wx.Panel(self)
@@ -352,7 +361,7 @@ class PassDialog(wx.Dialog):
 		self.password_field= wx.TextCtrl(panel)
 		# self.password_field.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
 		
-		ok_button= wx.Button(self, wx.ID_OK, "&Ingresar")
+		ok_button= wx.Button(self, wx.ID_OK, text_button)
 
 	def onKeyDown(self, event):
 		if event.ControlDown() and event.GetKeyCode() == wx.EVT_TEXT_ENTER:
