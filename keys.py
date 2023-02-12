@@ -5,38 +5,39 @@ from sqlite3 import connect
 import os
 from datetime import datetime
 from winsound import PlaySound, SND_FILENAME
+from configparser import ConfigParser
 
 class Database():
-	def __init__(self):
-		self.key= self.getKey()
+	def __init__(self, key_file_path):
+		self.key= self.getKey(key_file_path)
 		self.cipher= Fernet(self.key)
 		self.decrypt()
-		self.connect= connect('e:/recetas-open')
+		self.connect= connect('database-open')
 		self.cursor= self.connect.cursor()
 		self.date= self.getDate()
 
 	def decrypt(self):
 		try:
-			with open('e:/recetas', 'rb') as encrypt_file:
+			with open('database', 'rb') as encrypt_file:
 				content_c= encrypt_file.read()
 		except FileNotFoundError:
 			return None
 		content= self.cipher.decrypt(content_c)
-		with open('e:/recetas-open', 'wb') as decrypt_file:
+		with open('database-open', 'wb') as decrypt_file:
 			decrypt_file.write(content)
-			os.remove('e:/recetas')
+			os.remove('database')
 
 	def encrypt(self):
 		self.connect.close()
 		try:
-			with open('e:/recetas-open', 'rb') as decrypt_file:
+			with open('database-open', 'rb') as decrypt_file:
 				content= decrypt_file.read()
 		except FileNotFoundError:
 			return None
 		content_c= self.cipher.encrypt(content)
-		with open('e:/recetas', 'wb') as encrypt_file:
+		with open('database', 'wb') as encrypt_file:
 			encrypt_file.write(content_c)
-			os.remove('e:/recetas-open')
+			os.remove('database-open')
 
 	def getRowList(self):
 		self.cursor.execute('SELECT * FROM data ORDER BY service')
@@ -58,29 +59,77 @@ class Database():
 		date_format= f'{day}, {now.day}.{now.month}.{now.year}'
 		return date_format
 
-	def getKey(self):
+	def getKey(self, key_file_path):
 		try:
-			with open('e:/recetas-k', 'rb') as key_file:
+			with open(key_file_path, 'rb') as key_file:
 				key= key_file.read()
 			return key
 		except FileNotFoundError:
+			print('no se encontró el archivo key')
 			return None
-
-
 
 class Main(wx.Frame):
 	def __init__(self, parent, title):
 		super().__init__(parent, title= title, size=(400, 300))
 
-		self.InitUI()
 		self.Centre()
-		self.Show()
+		self.key_file_path= None
+		if self.getConfig():
+			self.InitUI()
+			self.Show()
+
+	def getConfig(self):
+		if os.path.exists('config'):
+			config= ConfigParser()
+			config.read('config')
+			self.key_file_path= config['KeyFile']['path']
+			return True
+		else:
+			message= 'Es necesario crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma. Seleccionemos donde guardar este archivo'
+			wx.MessageDialog(None, message, 'Importante').ShowModal()
+			save_dialog = wx.FileDialog(None, 'Guardar el archivo clave', style=wx.FD_SAVE)
+			save_dialog.SetFilename('key')
+			if save_dialog.ShowModal() == wx.ID_OK:
+				file_path= save_dialog.GetPath().replace('\\', '/')
+				self.key_file_path= file_path
+				config= ConfigParser()
+				config['KeyFile']= {'path': file_path}
+				with open('config', 'w') as config_file:
+					config.write(config_file)
+				key= Fernet.generate_key()
+				with open(file_path, 'wb') as key_file:
+					key_file.write(key)
+					self.getDatabase(key)
+
+	def getDatabase(self, key):
+		if not os.path.exists('database'):
+			connection= connect('database-open')
+			cursor= connection.cursor()
+			cursor.execute('CREATE TABLE IF NOT EXISTS data (service TEXT, user TEXT, password TEXT, date TEXT, extra TEXT)')
+			connection.commit()
+			entities= ('ServicioDePrueba', 'NombreDeUsuario', 'MiContraseña', 'Sábado, 26.09.2015', 'DatosExtra')
+			cursor.execute('INSERT INTO data (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
+			connection.commit()
+			connection.close()
+			self.encryptFile(key)
+			# self.InitUI()
+			# self.Show()
+			wx.MessageDialog(None, 'Proceso finalizado correctamente. Es necesario reiniciar el programa', '✌').ShowModal()
+			exit()
+
+	def encryptFile(self, key):
+		cipher= Fernet(key)
+		with open('database-open', 'rb') as decrypt_file:
+			content= decrypt_file.read()
+		content_c= cipher.encrypt(content)
+		with open('database', 'wb') as encrypt_file:
+			encrypt_file.write(content_c)
 
 	def InitUI(self):
 		panel= wx.Panel(self)
 		vbox= wx.BoxSizer(wx.VERTICAL)
 
-		self.database= Database()
+		self.database= Database(self.key_file_path)
 		self.row_list= [row[0] for row in self.database.getRowList()]
 		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
@@ -223,7 +272,6 @@ class DataDialog(wx.Dialog):
 			wx.Button(self, wx.ID_CANCEL, "&Descartar los cambios")
 		else:
     			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
-
 
 app= wx.App()
 Main(None, 'Gestor de contraseñas')
