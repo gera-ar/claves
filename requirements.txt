@@ -1,0 +1,5 @@
+accessible-output2==0.17
+clipboard==0.0.4
+cryptography==39.0.1
+pygame==2.1.2
+wxPython==4.2.0

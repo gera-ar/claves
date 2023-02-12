@@ -194,7 +194,7 @@ class Main(wx.Frame):
 			elif current_selection > 0:
 				self.listbox.SetSelection(current_selection-1)
 			elif current_selection == 0 and self.listbox.GetCount() > 0:
-				self.listbox.SetSelection(current_selection+1)
+				self.listbox.SetSelection(current_selection)
 
 	def onAdd(self, event):
 		dialog= Dialog(self, 'Añadir elemento')
