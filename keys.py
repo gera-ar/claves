@@ -1,10 +1,10 @@
 ﻿import wx
-from clipboard import copy
 from cryptography.fernet import Fernet
 from sqlite3 import connect
 import os
 from datetime import datetime
 from configparser import ConfigParser
+from subprocess import check_output
 import accessible_output2.outputs.auto
 from pygame import mixer
 mixer.init()
@@ -15,6 +15,9 @@ RECYCLE= mixer.Sound('sounds/recycle.ogg')
 
 def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
+
+def getUUID():
+	return check_output('wmic csproduct get uuid').decode().split('\n')[1].strip()
 
 class Database():
 	def __init__(self, key_file_path):
@@ -83,7 +86,9 @@ class Main(wx.Frame):
 
 		self.Centre()
 		self.key_file_path= None
-		if self.getConfig():
+		self.key_file_content= None
+		config_file= self.getConfig()
+		if config_file:
 			self.InitUI()
 			self.Show()
 
@@ -94,23 +99,37 @@ class Main(wx.Frame):
 			self.key_file_path= config['KeyFile']['path']
 			return True
 		else:
-			message= 'Vamos a crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma'
-			wx.MessageDialog(None, message, 'Hola: ').ShowModal()
+			key_file_message= 'Vamos a crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma'
+			wx.MessageDialog(None, key_file_message, 'Hola: ').ShowModal()
 			save_dialog = wx.FileDialog(None, 'Guardar el archivo clave', style=wx.FD_SAVE)
 			save_dialog.SetFilename('key')
 			if save_dialog.ShowModal() == wx.ID_OK:
 				file_path= save_dialog.GetPath().replace('\\', '/')
 				self.key_file_path= file_path
 				config= ConfigParser()
-				config['KeyFile']= {'path': file_path}
-				with open('config', 'w') as config_file:
-					config.write(config_file)
-				key= Fernet.generate_key()
+				self.key_file_content= Fernet.generate_key()
 				with open(file_path, 'wb') as key_file:
-					key_file.write(key)
-					self.getDatabase(key)
+					key_file.write(self.key_file_content)
+			key_message= 'Ahora vamos a crear una contraseña de acceso para abrir el programa'
+			wx.MessageDialog(None, key_message, '👍: ').ShowModal()
+			pass_dialog= PassDialog(self, 'Contraseña de acceso')
+			pass_dialog.ShowModal()
+			password= pass_dialog.password_field.GetValue().encode()
+			password_c= self.encryptStr(password)
+			uuid= getUUID().encode()
+			uuid_c= self.encryptStr(uuid)
+			config['KeyFile']= {'path': file_path, 'code': password_c, 'UUID': uuid_c}
+			with open('config', 'w') as config_file:
+				config.write(config_file)
+			self.getDatabase()
 
-	def getDatabase(self, key):
+	def encryptStr(self, str):
+		cipher= Fernet(self.key_file_content)
+		cipher_str= cipher.encrypt(str)
+		return cipher_str
+
+
+	def getDatabase(self):
 		if not os.path.exists('database'):
 			connection= connect('database-open')
 			cursor= connection.cursor()
@@ -120,14 +139,13 @@ class Main(wx.Frame):
 			cursor.execute('INSERT INTO data (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
 			connection.commit()
 			connection.close()
-			self.encryptFile(key)
-			# self.InitUI()
-			# self.Show()
-			wx.MessageDialog(None, 'Proceso finalizado correctamente. Es necesario reiniciar el programa', '✌').ShowModal()
-			self.Destroy()
+			self.encryptFile()
+			self.InitUI()
+			wx.MessageDialog(None, 'Proceso finalizado correctamente. No olvides tu contraseña, y recordá guardar el archivo clave en un lugar seguro', '✌').ShowModal()
+			self.Show()
 
-	def encryptFile(self, key):
-		cipher= Fernet(key)
+	def encryptFile(self):
+		cipher= Fernet(self.key_file_content)
 		with open('database-open', 'rb') as decrypt_file:
 			content= decrypt_file.read()
 		content_c= cipher.encrypt(content)
@@ -294,7 +312,19 @@ class DataDialog(wx.Dialog):
 			wx.Button(self, wx.ID_OK, "&Guardar los cambios")
 			wx.Button(self, wx.ID_CANCEL, "&Descartar los cambios")
 		else:
-    			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
+			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
+
+class PassDialog(wx.Dialog):
+	def __init__(self, parent, title):
+		super().__init__(parent, title=title)
+
+		panel = wx.Panel(self)
+		
+		wx.StaticText(panel, label='Contraseña de acceso:')
+		self.password_field= wx.TextCtrl(panel)
+		
+		ok_button= wx.Button(self, wx.ID_OK, "&Guardar contraseña")
+
 
 app= wx.App()
 Main(None, 'Gestor de contraseñas')
