@@ -133,7 +133,8 @@ class Main(wx.Frame):
 		self.row_list= [row[0] for row in self.database.getRowList()]
 		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
-		self.listbox.SetSelection(0)
+		if len(self.row_list) > 0:
+			self.listbox.SetSelection(0)
 		vbox.Add(self.listbox, wx.ID_ANY, wx.ALL | wx.EXPAND, 10)
 
 		hbox = wx.BoxSizer(wx.HORIZONTAL)
