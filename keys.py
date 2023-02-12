@@ -4,8 +4,17 @@ from cryptography.fernet import Fernet
 from sqlite3 import connect
 import os
 from datetime import datetime
-from winsound import PlaySound, SND_FILENAME
 from configparser import ConfigParser
+import accessible_output2.outputs.auto
+from pygame import mixer
+mixer.init()
+
+# Sounds:
+ADD= mixer.Sound('sounds/add.ogg')
+RECYCLE= mixer.Sound('sounds/recycle.ogg')
+
+def speak(message):
+	accessible_output2.outputs.auto.Auto().speak(message)
 
 class Database():
 	def __init__(self, key_file_path):
@@ -85,8 +94,8 @@ class Main(wx.Frame):
 			self.key_file_path= config['KeyFile']['path']
 			return True
 		else:
-			message= 'Es necesario crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma. Seleccionemos donde guardar este archivo'
-			wx.MessageDialog(None, message, 'Importante').ShowModal()
+			message= 'Vamos a crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma'
+			wx.MessageDialog(None, message, 'Hola: ').ShowModal()
 			save_dialog = wx.FileDialog(None, 'Guardar el archivo clave', style=wx.FD_SAVE)
 			save_dialog.SetFilename('key')
 			if save_dialog.ShowModal() == wx.ID_OK:
@@ -115,7 +124,7 @@ class Main(wx.Frame):
 			# self.InitUI()
 			# self.Show()
 			wx.MessageDialog(None, 'Proceso finalizado correctamente. Es necesario reiniciar el programa', '✌').ShowModal()
-			exit()
+			self.Destroy()
 
 	def encryptFile(self, key):
 		cipher= Fernet(key)
@@ -124,6 +133,7 @@ class Main(wx.Frame):
 		content_c= cipher.encrypt(content)
 		with open('database', 'wb') as encrypt_file:
 			encrypt_file.write(content_c)
+		os.remove('database-open')
 
 	def InitUI(self):
 		panel= wx.Panel(self)
@@ -176,20 +186,24 @@ class Main(wx.Frame):
 		self.database.connect.commit()
 		current_selection= self.listbox.GetSelection()
 		if current_selection != wx.NOT_FOUND:
+			speak(self.listbox.GetStringSelection())
 			self.listbox.Delete(current_selection)
-			PlaySound('C:/Windows/Media/Windows Recycle.wav', SND_FILENAME)
+			RECYCLE.play()
 
 	def onAdd(self, event):
-		dialog= Dialog(self, 'Añadir contraseña')
+		dialog= Dialog(self, 'Añadir elemento')
 		if dialog.ShowModal() == wx.ID_OK:
 			service= dialog.service_field.GetValue()
 			user= dialog.user_field.GetValue()
 			password= dialog.pass_field.GetValue()
 			extra= dialog.extra_field.GetValue()
 			self.database.addRow(service, user, password, extra)
-			self.row_list.append((service, user, password, self.database.date, extra))
-			self.listbox.Append(service)
-			wx.MessageDialog(None, f'{service} añadido correctamente', '✌').ShowModal()
+			self.row_list.append(service)
+			self.row_list.sort()
+			self.listbox.Clear()
+			self.listbox.InsertItems(self.row_list, 0)
+			self.listbox.SetStringSelection(service)
+			ADD.play()
 
 	def onClose(self, event):
 		self.database.encrypt()
@@ -220,7 +234,7 @@ class Main(wx.Frame):
 		value= self.database.cursor.fetchall()[0][0]
 		wx.TheClipboard.SetData(wx.TextDataObject(value))
 		wx.TheClipboard.Close()
-		PlaySound('C:/Windows/Media/Windows Startup.wav', SND_FILENAME)
+		speak('Copiado al portapapeles')
 
 class Dialog(wx.Dialog):
 	def __init__(self,parent, title):
