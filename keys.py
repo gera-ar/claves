@@ -89,14 +89,29 @@ class Main(wx.Frame):
 		self.key_file_content= None
 		config_file= self.getConfig()
 		if config_file:
-			self.InitUI()
-			self.Show()
+			if self.passVerify():
+				self.InitUI()
+				self.Show()
+
+	def passVerify(self):
+		pass_dialog= PassDialog(self, 'Acceso')
+		pass_dialog.ShowModal()
+		if self.password == pass_dialog.password_field.GetValue():
+			return True
+		else:
+			wx.MessageDialog(None, 'Contraseña incorrecta', '👎').ShowModal()
+			self.Destroy()
+
+
 
 	def getConfig(self):
 		if os.path.exists('config'):
 			config= ConfigParser()
 			config.read('config')
 			self.key_file_path= config['KeyFile']['path']
+			with open('code', 'rb') as code_file:
+				password= code_file.read()
+			self.password= self.decryptB(password).decode()
 			return True
 		else:
 			key_file_message= 'Vamos a crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma'
@@ -116,9 +131,13 @@ class Main(wx.Frame):
 			pass_dialog.ShowModal()
 			password= pass_dialog.password_field.GetValue().encode()
 			password_c= self.encryptStr(password)
+			with open('code', 'wb') as code_file:
+				code_file.write(password_c)
 			uuid= getUUID().encode()
 			uuid_c= self.encryptStr(uuid)
-			config['KeyFile']= {'path': file_path, 'code': password_c, 'UUID': uuid_c}
+			with open('uuid', 'wb') as uuid_file:
+				uuid_file.write(uuid_c)
+			config['KeyFile']= {'path': file_path}
 			with open('config', 'w') as config_file:
 				config.write(config_file)
 			self.getDatabase()
@@ -127,6 +146,13 @@ class Main(wx.Frame):
 		cipher= Fernet(self.key_file_content)
 		cipher_str= cipher.encrypt(str)
 		return cipher_str
+
+	def decryptB(self, object):
+		with open(self.key_file_path, 'rb') as key_file:
+			key= key_file.read()
+		cipher= Fernet(key)
+		string= cipher.decrypt(object)
+		return string
 
 
 	def getDatabase(self):
@@ -323,8 +349,7 @@ class PassDialog(wx.Dialog):
 		wx.StaticText(panel, label='Contraseña de acceso:')
 		self.password_field= wx.TextCtrl(panel)
 		
-		ok_button= wx.Button(self, wx.ID_OK, "&Guardar contraseña")
-
+		ok_button= wx.Button(self, wx.ID_OK, "&Aceptar")
 
 app= wx.App()
 Main(None, 'Gestor de contraseñas')
