@@ -12,6 +12,7 @@ mixer.init()
 # Sounds:
 ADD= mixer.Sound('sounds/add.ogg')
 RECYCLE= mixer.Sound('sounds/recycle.ogg')
+OK= mixer.Sound('sounds/ok.ogg')
 
 def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
@@ -97,6 +98,7 @@ class Main(wx.Frame):
 		pass_dialog= PassDialog(self, 'Acceso')
 		pass_dialog.ShowModal()
 		if self.password == pass_dialog.password_field.GetValue():
+			OK.play()
 			return True
 		else:
 			wx.MessageDialog(None, 'Contraseña incorrecta', '👎').ShowModal()
@@ -346,10 +348,15 @@ class PassDialog(wx.Dialog):
 
 		panel = wx.Panel(self)
 		
-		wx.StaticText(panel, label='Contraseña de acceso:')
+		wx.StaticText(panel, label='Ingresa la contraseña:')
 		self.password_field= wx.TextCtrl(panel)
+		# self.password_field.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
 		
-		ok_button= wx.Button(self, wx.ID_OK, "&Aceptar")
+		ok_button= wx.Button(self, wx.ID_OK, "&Ingresar")
+
+	def onKeyDown(self, event):
+		if event.ControlDown() and event.GetKeyCode() == wx.EVT_TEXT_ENTER:
+			self.Close()
 
 app= wx.App()
 Main(None, 'Gestor de contraseñas')
