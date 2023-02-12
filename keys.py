@@ -186,12 +186,15 @@ class Main(wx.Frame):
 		self.database.connect.commit()
 		current_selection= self.listbox.GetSelection()
 		if current_selection != wx.NOT_FOUND:
+			self.row_list.pop(current_selection)
 			self.listbox.Delete(current_selection)
 			RECYCLE.play()
-			if current_selection > 0:
-				self.listbox.SetSelection(current_selection-1)
-			else:
+			if self.listbox.GetCount() < 1:
 				speak('Lista vacía')
+			elif current_selection > 0:
+				self.listbox.SetSelection(current_selection-1)
+			elif current_selection == 0 and self.listbox.GetCount() > 0:
+				self.listbox.SetSelection(current_selection+1)
 
 	def onAdd(self, event):
 		dialog= Dialog(self, 'Añadir elemento')
@@ -221,6 +224,8 @@ class Main(wx.Frame):
 		elif event.ControlDown() and event.GetKeyCode() == 85:
 			self.getValue(self.listbox.GetStringSelection(), 'user')
 			event.Skip()
+		elif event.ControlDown() and event.GetKeyCode() == 69:
+			speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
 			self.database.cursor.execute('SELECT * FROM data WHERE service=?', (self.listbox.GetStringSelection(),))
 			row_data= self.database.cursor.fetchall()[0]
