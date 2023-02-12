@@ -186,9 +186,12 @@ class Main(wx.Frame):
 		self.database.connect.commit()
 		current_selection= self.listbox.GetSelection()
 		if current_selection != wx.NOT_FOUND:
-			speak(self.listbox.GetStringSelection())
 			self.listbox.Delete(current_selection)
 			RECYCLE.play()
+			if current_selection > 0:
+				self.listbox.SetSelection(current_selection-1)
+			else:
+				speak('Lista vacía')
 
 	def onAdd(self, event):
 		dialog= Dialog(self, 'Añadir elemento')
