@@ -113,6 +113,7 @@ class Main(wx.Frame):
 			config= ConfigParser()
 			config.read('config')
 			self.key_file_path= config['KeyFile']['path']
+			if not os.path.exists(self.key_file_path): self.browseFile()
 			with open('code', 'rb') as code_file:
 				password= code_file.read()
 			self.password= self.decryptB(password).decode()
@@ -145,6 +146,29 @@ class Main(wx.Frame):
 			with open('config', 'w') as config_file:
 				config.write(config_file)
 			self.getDatabase()
+
+	def browseFile(self):
+		wx.MessageDialog(None, 'No se ha encontrado el archivo clave en la ruta especificada en la configuración', '😟').ShowModal()
+		browse_file= wx.FileDialog(self, "Buscar archivo clave")
+		if browse_file.ShowModal() == wx.ID_OK:
+			path= browse_file.GetPath()
+			self.key_file_path= path
+			config= ConfigParser()
+			config.read('config')
+			config['KeyFile']= {'path': path}
+			with open('config', 'w') as config_file:
+				config.write(config_file)
+		else:
+			error_message= 'Sin ese archivo no se puede desencriptar la base de datos ni la contraseña. Por favor elimina el archivo config, y el archivo database y vuelve a ejecutar el programa'
+			question= wx.MessageDialog(None, error_message, '😟', wx.YES_NO | wx.ICON_QUESTION)
+			if question.ShowModal() == wx.ID_YES:
+				try:
+					os.remove('config')
+					os.remove('database')
+					os.remove('database-open')
+				except FileNotFoundError:
+					pass
+			self.Destroy()
 
 	def encryptStr(self, str):
 		cipher= Fernet(self.key_file_content)
