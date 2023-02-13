@@ -2,12 +2,15 @@
 from cryptography.fernet import Fernet, InvalidToken
 from sqlite3 import connect
 import os
+from shutil import copy
 from datetime import datetime
 from configparser import ConfigParser
 from subprocess import check_output
 import accessible_output2.outputs.auto
 from time import sleep
 from pygame import mixer
+
+app= wx.App()
 mixer.init()
 
 # Sounds:
@@ -22,6 +25,24 @@ def speak(message):
 
 def getUUID():
 	return check_output('wmic csproduct get uuid').decode().split('\n')[1].strip()
+
+def encryptFileOpen():
+	try:
+		config= ConfigParser()
+		config.read('config')
+		key_file_path= config['KeyFile']['path']
+		with open(key_file_path, 'rb') as key_file:
+			key= key_file.read()
+		cipher= Fernet(key)
+		with open('database-open', 'rb') as open_file:
+			content= open_file.read()
+		content_c= cipher.encrypt(content)
+		with open('database', 'wb') as database_file:
+			database_file.write(content_c)
+			os.remove('database-open')
+			wx.MessageDialog(None, 'Proceso finalizado correctamente. Vuelve a ejecutar el programa', '✌').ShowModal()
+	except InvalidToken as e:
+		wx.MessageDialog(None, 'Error en la lectura del archivo clave', '😟').ShowModal()
 
 class Database():
 	def __init__(self, key_file_path):
@@ -238,10 +259,11 @@ class Main(wx.Frame):
 		menu_bar.Append(file_menu, '&Archivo')
 		self.SetMenuBar(menu_bar)
 
-		self.Bind(wx.EVT_MENU, self.on_export_db, export_db)
-		self.Bind(wx.EVT_MENU, self.on_import_db, import_db)
-		self.Bind(wx.EVT_MENU, self.on_export_file, export_file)
-		self.Bind(wx.EVT_MENU, self.on_change_pass, change_pass)
+		self.Bind(wx.EVT_MENU, self.onExportDb, export_db)
+		self.Bind(wx.EVT_MENU, self.onImportDb, import_db)
+		self.Bind(wx.EVT_MENU, self.onExportFile, export_file)
+		self.Bind(wx.EVT_MENU, self.onChangePass, change_pass)
+
 
 		hbox.Add(modify_button)
 		hbox.Add(delete_button)
@@ -302,16 +324,24 @@ class Main(wx.Frame):
 			self.listbox.SetStringSelection(service)
 			ADD.play()
 
-	def on_export_db(self, event):
+	def onExportDb(self, event):
 		pass
 
-	def on_import_db(self, event):
+	def onImportDb(self, event):
 		pass
 
-	def on_export_file(self, event):
-		pass
+	def onExportFile(self, event):
+		config= ConfigParser()
+		config.read('config')
+		old_path= config['KeyFile']['path']
+		# wx.MessageDialog(None, 'Archivo exportado correctamente', '✌').ShowModal()
+		save_dialog= wx.FileDialog(None, 'Guardar el archivo clave', style=wx.FD_SAVE)
+		if save_dialog.ShowModal() == wx.ID_OK:
+			file_path= save_dialog.GetPath().replace('\\', '/')
+			copy(old_path, file_path)
+			wx.MessageDialog(None, f'Archivo guardado correctamente en la ruta: {file_path}', '✌').ShowModal()
 
-	def on_change_pass(self, event):
+	def onChangePass(self, event):
 		pass_dialog= PassDialog(self, 'Cambiar contraseña', '&Guardar la nueva contraseña')
 		pass_dialog.ShowModal()
 		password= pass_dialog.password_field.GetValue().encode()
@@ -425,6 +455,12 @@ class PassDialog(wx.Dialog):
 		if event.ControlDown() and event.GetKeyCode() == wx.EVT_TEXT_ENTER:
 			self.Close()
 
-app= wx.App()
-Main(None, 'Gestor de contraseñas')
-app.MainLoop()
+if os.path.exists('database-open'):
+	error_message= 'Ya hay una instancia abierta del programa. Si estás seguro que no hay ninguna ejecutándose, pulsa el botón restaurar para procesar los archivos e intentar abrirlo nuevamente'
+	error_dialog= wx.MessageDialog(None, error_message, '😟', wx.YES_NO | wx.ICON_QUESTION)
+	error_dialog.SetYesNoLabels("Restaurar", "Cancelar")
+	if error_dialog.ShowModal() == wx.ID_YES:
+		encryptFileOpen()
+else:
+	Main(None, 'Gestor de contraseñas')
+	app.MainLoop()
