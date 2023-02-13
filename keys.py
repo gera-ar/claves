@@ -55,17 +55,17 @@ class Database():
 			os.remove('database-open')
 
 	def getRowList(self):
-		self.cursor.execute('SELECT * FROM data ORDER BY service')
+		self.cursor.execute('SELECT * FROM passwords ORDER BY service')
 		row_list= self.cursor.fetchall()
 		return row_list
 
 	def modifyRow(self, old_service, service, user, password, extra):
-		self.cursor.execute('DELETE from data where service=?', (old_service,))
-		self.cursor.execute('INSERT INTO data VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
+		self.cursor.execute('DELETE from passwords where service=?', (old_service,))
+		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
 		self.connect.commit()
 
 	def addRow(self, service, user, password, extra):
-		self.cursor.execute('INSERT INTO data VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
+		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
 		self.connect.commit()
 
 	def getDate(self):
@@ -187,10 +187,10 @@ class Main(wx.Frame):
 		if not os.path.exists('database'):
 			connection= connect('database-open')
 			cursor= connection.cursor()
-			cursor.execute('CREATE TABLE IF NOT EXISTS data (service TEXT, user TEXT, password TEXT, date TEXT, extra TEXT)')
+			cursor.execute('CREATE TABLE IF NOT EXISTS passwords (service TEXT, user TEXT, password TEXT, date TEXT, extra TEXT)')
 			connection.commit()
 			entities= ('ServicioDePrueba', 'NombreDeUsuario', 'MiContraseña', 'Sábado, 26.09.2015', 'DatosExtra')
-			cursor.execute('INSERT INTO data (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
+			cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
 			connection.commit()
 			connection.close()
 			self.encryptFile()
@@ -244,7 +244,7 @@ class Main(wx.Frame):
 		self.Destroy()
 
 	def onModify(self, event):
-		self.database.cursor.execute('SELECT * FROM data WHERE service=?', (self.listbox.GetStringSelection(),))
+		self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (self.listbox.GetStringSelection(),))
 		row_data= self.database.cursor.fetchall()[0]
 		data_dialog= DataDialog(self, row_data[0], row_data[0], row_data[1], row_data[2], row_data[3], row_data[4], True)
 		if data_dialog.ShowModal() == wx.ID_OK:
@@ -260,7 +260,7 @@ class Main(wx.Frame):
 			wx.MessageDialog(None, f'{service} modificado correctamente', '✌').ShowModal()
 
 	def onDelete(self, event):
-		self.database.cursor.execute('DELETE from data where service=?', (self.listbox.GetStringSelection(),))
+		self.database.cursor.execute('DELETE from passwords where service=?', (self.listbox.GetStringSelection(),))
 		self.database.connect.commit()
 		current_selection= self.listbox.GetSelection()
 		if current_selection != wx.NOT_FOUND:
@@ -306,7 +306,7 @@ class Main(wx.Frame):
 		elif event.ControlDown() and event.GetKeyCode() == 69:
 			speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
-			self.database.cursor.execute('SELECT * FROM data WHERE service=?', (self.listbox.GetStringSelection(),))
+			self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (self.listbox.GetStringSelection(),))
 			row_data= self.database.cursor.fetchall()[0]
 			DataDialog(self, row_data[0], row_data[0], row_data[1], row_data[2], row_data[3], row_data[4], False).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
@@ -316,7 +316,7 @@ class Main(wx.Frame):
 			# print(event.GetKeyCode())
 
 	def getValue(self, service, column):
-		query= f'SELECT {column} FROM data WHERE service=?'
+		query= f'SELECT {column} FROM passwords WHERE service=?'
 		self.database.cursor.execute(query, (service,))
 		value= self.database.cursor.fetchall()[0][0]
 		wx.TheClipboard.SetData(wx.TextDataObject(value))
