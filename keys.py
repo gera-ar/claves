@@ -11,9 +11,9 @@ from subprocess import check_output
 import accessible_output2.outputs.auto
 from time import sleep
 from pygame import mixer
+mixer.init()
 
 app= wx.App()
-mixer.init()
 
 # Sounds:
 ADD= mixer.Sound('sounds/add.ogg')
@@ -278,7 +278,7 @@ class Main(wx.Frame):
 
 	def onExit(self, event):
 		EXIT.play()
-		sleep(0.2)
+		sleep(EXIT.get_length())
 		self.Destroy()
 
 	def onModify(self, event):
