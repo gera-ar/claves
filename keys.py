@@ -148,7 +148,7 @@ class Main(wx.Frame):
 			self.getDatabase()
 
 	def browseFile(self):
-		wx.MessageDialog(None, 'No se ha encontrado el archivo clave en la ruta especificada en la configuración', '😟').ShowModal()
+		wx.MessageDialog(None, 'No se ha encontrado el archivo clave en la ruta especificada en la configuración. Vamos a buscarlo...', '😟').ShowModal()
 		browse_file= wx.FileDialog(self, "Buscar archivo clave")
 		if browse_file.ShowModal() == wx.ID_OK:
 			path= browse_file.GetPath()
@@ -159,7 +159,7 @@ class Main(wx.Frame):
 			with open('config', 'w') as config_file:
 				config.write(config_file)
 		else:
-			error_message= 'Sin ese archivo no se puede desencriptar la base de datos ni la contraseña. Por favor elimina el archivo config, y el archivo database y vuelve a ejecutar el programa'
+			error_message= 'Sin ese archivo no se puede desencriptar la base de datos ni la contraseña, por favor elimina el archivo config y el archivo database y vuelve a ejecutar el programa. ¡Quieres que los elimine ahora?'
 			question= wx.MessageDialog(None, error_message, '😟', wx.YES_NO | wx.ICON_QUESTION)
 			if question.ShowModal() == wx.ID_YES:
 				try:
