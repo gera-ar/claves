@@ -32,11 +32,8 @@ class Database():
 		self.date= self.getDate()
 
 	def decrypt(self):
-		try:
-			with open('database', 'rb') as encrypt_file:
-				content_c= encrypt_file.read()
-		except FileNotFoundError:
-			return None
+		with open('database', 'rb') as encrypt_file:
+			content_c= encrypt_file.read()
 		content= self.cipher.decrypt(content_c)
 		with open('database-open', 'wb') as decrypt_file:
 			decrypt_file.write(content)
@@ -44,11 +41,8 @@ class Database():
 
 	def encrypt(self):
 		self.connect.close()
-		try:
-			with open('database-open', 'rb') as decrypt_file:
-				content= decrypt_file.read()
-		except FileNotFoundError:
-			return None
+		with open('database-open', 'rb') as decrypt_file:
+			content= decrypt_file.read()
 		content_c= self.cipher.encrypt(content)
 		with open('database', 'wb') as encrypt_file:
 			encrypt_file.write(content_c)
@@ -230,6 +224,20 @@ class Main(wx.Frame):
 		close_button.Bind(wx.EVT_BUTTON, self.onClose)
 		self.Bind(wx.EVT_CLOSE, self.onExit)
 
+		menu_bar = wx.MenuBar()
+		file_menu = wx.Menu()
+		export_db = file_menu.Append(wx.ID_ANY, 'Exportar base de datos actual')
+		import_db = file_menu.Append(wx.ID_ANY, 'Importar base de datos existente')
+		export_file = file_menu.Append(wx.ID_ANY, 'Exportar archivo clave')
+		change_pass = file_menu.Append(wx.ID_ANY, 'Cambiar la contraseña de acceso')
+		menu_bar.Append(file_menu, '&Archivo')
+		self.SetMenuBar(menu_bar)
+
+		self.Bind(wx.EVT_MENU, self.on_export_db, export_db)
+		self.Bind(wx.EVT_MENU, self.on_import_db, import_db)
+		self.Bind(wx.EVT_MENU, self.on_export_file, export_file)
+		self.Bind(wx.EVT_MENU, self.on_change_pass, change_pass)
+
 		hbox.Add(modify_button)
 		hbox.Add(delete_button)
 		hbox.Add(add_button)
@@ -288,6 +296,18 @@ class Main(wx.Frame):
 			self.listbox.InsertItems(self.row_list, 0)
 			self.listbox.SetStringSelection(service)
 			ADD.play()
+
+	def on_export_db(self, event):
+		pass
+
+	def on_import_db(self, event):
+		pass
+
+	def on_export_file(self, event):
+		pass
+
+	def on_change_pass(self, event):
+		pass
 
 	def onClose(self, event):
 		self.database.encrypt()
