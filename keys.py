@@ -3,6 +3,8 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlite3 import connect
 import os
 from shutil import copy, move
+from string import ascii_letters, digits
+from random import sample, shuffle
 from datetime import datetime
 from configparser import ConfigParser
 from subprocess import check_output
@@ -414,6 +416,8 @@ class Dialog(wx.Dialog):
 		
 		wx.StaticText(Panel, wx.ID_ANY, u"Contraseña")
 		self.pass_field= wx.TextCtrl(Panel, wx.ID_ANY, "")
+		self.random_button= wx.Button(Panel, label='&Crear contraseña aleatoria')
+		self.random_button.Bind(wx.EVT_BUTTON, self.onRandomPass)
 
 		wx.StaticText(Panel, wx.ID_ANY, "Extra")
 		self.extra_field= wx.TextCtrl(Panel, wx.ID_ANY, "")
@@ -424,6 +428,12 @@ class Dialog(wx.Dialog):
 
 		self.SetAffirmativeId(self.ok_button.GetId())
 		self.SetEscapeId(self.cancel_button.GetId())
+
+	def onRandomPass(self, event):
+		chars= list(ascii_letters+digits)
+		password= ''.join(sample(chars, 12))
+		self.pass_field.SetValue(password)
+		self.pass_field.SetFocus()
 
 class DataDialog(wx.Dialog):
 	def __init__(self, parent, title, service, user, password, date, extra, text_button_save):
