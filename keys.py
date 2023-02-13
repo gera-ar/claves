@@ -328,7 +328,14 @@ class Main(wx.Frame):
 		pass
 
 	def onImportDb(self, event):
-		pass
+		self.database.connect.close()
+		os.remove('database-open')
+		browse_file= wx.FileDialog(self, "Buscar el archivo base de datos")
+		if browse_file.ShowModal() == wx.ID_OK:
+			path= browse_file.GetPath()
+			copy(path, 'database')
+			wx.MessageDialog(None, 'Base de datos importada correctamente. Vuelve a ejecutar el programa', '✌').ShowModal()
+			self.Close()
 
 	def onExportFile(self, event):
 		config= ConfigParser()
