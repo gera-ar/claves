@@ -1,5 +1,5 @@
 ﻿import wx
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlite3 import connect
 import os
 from datetime import datetime
@@ -14,6 +14,7 @@ mixer.init()
 ADD= mixer.Sound('sounds/add.ogg')
 RECYCLE= mixer.Sound('sounds/recycle.ogg')
 EXIT= mixer.Sound('sounds/exit.ogg')
+EXIT.set_volume(0.7)
 OK= mixer.Sound('sounds/ok.ogg')
 
 def speak(message):
@@ -110,7 +111,7 @@ class Main(wx.Frame):
 			if not os.path.exists(self.key_file_path): self.browseFile()
 			with open('code', 'rb') as code_file:
 				password= code_file.read()
-			self.password= self.decryptB(password).decode()
+				self.password= self.decryptB(password).decode()
 			return True
 		else:
 			key_file_message= 'Vamos a crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma'
@@ -170,12 +171,16 @@ class Main(wx.Frame):
 		return cipher_str
 
 	def decryptB(self, object):
-		with open(self.key_file_path, 'rb') as key_file:
-			key= key_file.read()
-		cipher= Fernet(key)
-		string= cipher.decrypt(object)
-		return string
+		try:
+			with open(self.key_file_path, 'rb') as key_file:
+				key= key_file.read()
+				cipher= Fernet(key)
+				string= cipher.decrypt(object)
 
+		except InvalidToken as e:
+			wx.MessageDialog(None, f'No se puede leer el archivo clave. Error {e.__str__}', 'Error').ShowModal()
+			self.Close()
+		return string
 
 	def getDatabase(self):
 		if not os.path.exists('database'):
@@ -307,7 +312,16 @@ class Main(wx.Frame):
 		pass
 
 	def on_change_pass(self, event):
-		pass
+		pass_dialog= PassDialog(self, 'Cambiar contraseña', '&Guardar la nueva contraseña')
+		pass_dialog.ShowModal()
+		password= pass_dialog.password_field.GetValue().encode()
+		with open(self.key_file_path, 'rb') as key_file:
+			key= key_file.read()
+		cipher= Fernet(key)
+		password_c= cipher.encrypt(password)
+		with open('code', 'wb') as code_file:
+			code_file.write(password_c)
+			wx.MessageDialog(None, 'Contraseña cambiada exitosamente', '👍').ShowModal()
 
 	def onClose(self, event):
 		self.database.encrypt()
