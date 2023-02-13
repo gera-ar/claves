@@ -2,7 +2,7 @@
 from cryptography.fernet import Fernet, InvalidToken
 from sqlite3 import connect
 import os
-from shutil import copy
+from shutil import copy, move
 from datetime import datetime
 from configparser import ConfigParser
 from subprocess import check_output
@@ -61,14 +61,15 @@ class Database():
 			decrypt_file.write(content)
 			os.remove('database')
 
-	def encrypt(self):
-		self.connect.close()
+	def encrypt(self, remove= True):
 		with open('database-open', 'rb') as decrypt_file:
 			content= decrypt_file.read()
 		content_c= self.cipher.encrypt(content)
 		with open('database', 'wb') as encrypt_file:
 			encrypt_file.write(content_c)
-			os.remove('database-open')
+			if remove:
+				self.connect.close()
+				os.remove('database-open')
 
 	def getRowList(self):
 		self.cursor.execute('SELECT * FROM passwords ORDER BY service')
@@ -325,7 +326,13 @@ class Main(wx.Frame):
 			ADD.play()
 
 	def onExportDb(self, event):
-		pass
+		self.database.encrypt(False)
+		save_dialog = wx.FileDialog(None, 'Exportar la base de datos', style=wx.FD_SAVE)
+		save_dialog.SetFilename('database')
+		if save_dialog.ShowModal() == wx.ID_OK:
+			file_path= save_dialog.GetPath().replace('\\', '/')
+			move('database', file_path)
+			wx.MessageDialog(None, 'Base de datos exportada correctamente', '✌').ShowModal()
 
 	def onImportDb(self, event):
 		self.database.connect.close()
