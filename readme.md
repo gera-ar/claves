@@ -10,9 +10,7 @@ La seguridad se basa en la encriptación de la base de datos a través de un arc
 
 Al ejecutarse por primera  vez se solicita la creación  de un archivo clave. Este va a estar asociado a la contraseña de acceso y a la base de datos, por lo que es muy importante guardar una copia del archivo en lugar seguro. La pérdida del archivo clave implica la imposibilidad de acceso a los datos guardados
 
-Si el archivo clave se corrompe o se elimina, al volver a iniciarse el ejecutable se va a solicitar buscar ese archivo con un diálogo típico de Windos. En el caso de tener una copia se guarda en la configuración la nueva ruta del archivo. De lo contrario hay que eliminar el archivo de configuración y la base de datos para volver a iniciar el programa con una nueva base de datos.
-
-Seguidamente se solicita una contraseña de acceso. Esta debe recordarse ya que no es posible restaurarla. Una vez creada, ya estaremos dentro de la interfaz en la que hay una entrada de muestra.
+Seguidamente se solicita una contraseña de acceso. Esta debe recordarse ya que no es posible restaurarla. Una vez creada, ya estaremos dentro de la interfaz en la que tan solo hay una entrada de muestra.
 
 ## Descripción de la interfaz
 
@@ -51,6 +49,10 @@ Pulsando la tecla alt en la ventana principal, podremos recorrer las opciones de
 * Importar base de datos existente; Permite importar una base de datos ya creada para ser utilizada con el programa. (Para utilizar una base de datos existente, es necesario tener el archivo clave asociado a esa base de datos).
 * Cambiar la contraseña de acceso; Permite cambiar la contraseña de acceso al programa.
 * Exportar archivo clave; Permite hacer una copia de seguridad del archivo clave.
+
+### Errores
+
+Si el archivo clave se corrompe o se elimina, al volver a iniciarse el ejecutable se va a solicitar buscar ese archivo con un diálogo típico de Windos. En el caso de tener una copia se guarda en la configuración la nueva ruta del archivo. De lo contrario hay que eliminar el archivo de configuración y la base de datos para volver a iniciar el programa con una nueva base de datos.
 
 Si el programa fué cerrado de forma incorrecta, al volver a ejecutarlo es posible que aparezca un cartel de aviso que informa que ya existe una instancia activa del programa.
 
