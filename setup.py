@@ -1,5 +1,7 @@
 ﻿import wx
 from cryptography.fernet import Fernet, InvalidToken
+from hashlib import sha256
+from base64 import b64encode
 from sqlite3 import connect
 import os
 from shutil import copy, move
@@ -26,26 +28,21 @@ OK= mixer.Sound('sounds/ok.ogg')
 def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
 
-def getUUID():
-	return check_output('wmic csproduct get uuid').decode().split('\n')[1].strip()
+def getHash(string):
+	hash_obj= sha256(string.encode())
+	return b64encode(hash_obj.digest())
 
-def encryptFileOpen():
+def encrypt(string):
 	try:
-		config= ConfigParser()
-		config.read('config')
-		key_file_path= config['KeyFile']['path']
-		with open(key_file_path, 'rb') as key_file:
-			key= key_file.read()
-		cipher= Fernet(key)
-		with open('database-open', 'rb') as open_file:
-			content= open_file.read()
-		content_c= cipher.encrypt(content)
-		with open('database', 'wb') as database_file:
-			database_file.write(content_c)
-			os.remove('database-open')
-			wx.MessageDialog(None, 'Proceso finalizado correctamente. Vuelve a ejecutar el programa', '✌').ShowModal()
+		return cipher.encrypt(string.encode())
 	except InvalidToken as e:
-		wx.MessageDialog(None, 'Error en la lectura del archivo clave', '😟').ShowModal()
+		wx.MessageDialog(None, 'Error de clave', '😟').ShowModal()
+
+def decrypt(value):
+	try:
+		return cipher.decrypt(value)
+	except InvalidToken as e:
+		wx.MessageDialog(None, 'Error de clave', '😟').ShowModal()
 
 class Database():
 	def __init__(self, key_file_path):
@@ -108,104 +105,20 @@ class Main(wx.Frame):
 		super().__init__(parent, title= title, size=(400, 300))
 
 		self.Centre()
-		self.key_file_path= None
-		self.key_file_content= None
-		config_file= self.getConfig()
-		if config_file:
-			if self.passVerify():
-				self.InitUI()
-				self.Show()
+
+		if self.passVerify():
+			self.InitUI()
+			self.Show()
 
 	def passVerify(self):
 		pass_dialog= PassDialog(self, 'Acceso', '&Ingresar')
 		pass_dialog.ShowModal()
-		if self.password == pass_dialog.password_field.GetValue():
+		if password == getHash(pass_dialog.password_field.GetValue()):
 			OK.play()
 			return True
 		else:
 			wx.MessageDialog(None, 'Contraseña incorrecta', '👎').ShowModal()
 			self.Destroy()
-
-
-
-	def getConfig(self):
-		if os.path.exists('config'):
-			config= ConfigParser()
-			config.read('config')
-			self.key_file_path= config['KeyFile']['path']
-			if not os.path.exists(self.key_file_path): self.browseFile()
-			with open('code', 'rb') as code_file:
-				password= code_file.read()
-				self.password= self.decryptB(password).decode()
-			return True
-		else:
-			key_file_message= 'Vamos a crear el archivo clave. El mismo quedará asociado a la base de datos, por lo que es importante realizar una copia en lugar seguro para no perder el acceso a la misma'
-			wx.MessageDialog(None, key_file_message, 'Hola: ').ShowModal()
-			save_dialog = wx.FileDialog(None, 'Guardar el archivo clave', style=wx.FD_SAVE)
-			save_dialog.SetFilename('key')
-			save_dialog.ShowModal()
-			file_path= save_dialog.GetPath().replace('\\', '/')
-			self.key_file_path= file_path
-			config= ConfigParser()
-			self.key_file_content= Fernet.generate_key()
-			with open(file_path, 'wb') as key_file:
-				key_file.write(self.key_file_content)
-			key_message= 'Ahora vamos a crear una contraseña de acceso para abrir el programa'
-			wx.MessageDialog(None, key_message, '👍: ').ShowModal()
-			pass_dialog= PassDialog(self, 'Configurar contraseña de acceso', '&Aceptar')
-			pass_dialog.ShowModal()
-			password= pass_dialog.password_field.GetValue().encode()
-			password_c= self.encryptStr(password)
-			with open('code', 'wb') as code_file:
-				code_file.write(password_c)
-			uuid= getUUID().encode()
-		uuid_c= self.encryptStr(uuid)
-		with open('uuid', 'wb') as uuid_file:
-			uuid_file.write(uuid_c)
-		config['KeyFile']= {'path': file_path}
-		with open('config', 'w') as config_file:
-			config.write(config_file)
-		self.getDatabase()
-
-	def browseFile(self):
-		wx.MessageDialog(None, 'No se ha encontrado el archivo clave en la ruta especificada en la configuración. Vamos a buscarlo...', '😟').ShowModal()
-		browse_file= wx.FileDialog(self, "Buscar archivo clave")
-		if browse_file.ShowModal() == wx.ID_OK:
-			path= browse_file.GetPath()
-			self.key_file_path= path
-			config= ConfigParser()
-			config.read('config')
-			config['KeyFile']= {'path': path}
-			with open('config', 'w') as config_file:
-				config.write(config_file)
-		else:
-			error_message= 'Sin ese archivo no se puede desencriptar la base de datos ni la contraseña, por favor elimina el archivo config y el archivo database y vuelve a ejecutar el programa. ¡Quieres que los elimine ahora?'
-			question= wx.MessageDialog(None, error_message, '😟', wx.YES_NO | wx.ICON_QUESTION)
-			if question.ShowModal() == wx.ID_YES:
-				try:
-					os.remove('config')
-					os.remove('database')
-					os.remove('database-open')
-				except FileNotFoundError:
-					pass
-			self.Destroy()
-
-	def encryptStr(self, str):
-		cipher= Fernet(self.key_file_content)
-		cipher_str= cipher.encrypt(str)
-		return cipher_str
-
-	def decryptB(self, object):
-		try:
-			with open(self.key_file_path, 'rb') as key_file:
-				key= key_file.read()
-				cipher= Fernet(key)
-				string= cipher.decrypt(object)
-
-		except InvalidToken as e:
-			wx.MessageDialog(None, f'No se puede leer el archivo clave. Error {e.__str__}', 'Error').ShowModal()
-			self.Close()
-		return string
 
 	def getDatabase(self):
 		if not os.path.exists('database'):
@@ -485,12 +398,9 @@ class PassDialog(wx.Dialog):
 		if event.ControlDown() and event.GetKeyCode() == wx.EVT_TEXT_ENTER:
 			self.Close()
 
-if os.path.exists('database-open'):
-	error_message= 'Ya hay una instancia abierta del programa. Si estás seguro que no hay ninguna ejecutándose, pulsa el botón restaurar para procesar los archivos e intentar abrirlo nuevamente'
-	error_dialog= wx.MessageDialog(None, error_message, '😟', wx.YES_NO | wx.ICON_QUESTION)
-	error_dialog.SetYesNoLabels("Restaurar", "Cancelar")
-	if error_dialog.ShowModal() == wx.ID_YES:
-		encryptFileOpen()
-else:
+if os.path.exists('crypto/hash'):
+	with open('crypto/hash', 'rb') as file:
+		password= file.read()
+		cipher= Fernet(password)
 	Main(None, 'Gestor de contraseñas')
 	app.MainLoop()
