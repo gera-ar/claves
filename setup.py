@@ -1,4 +1,5 @@
-﻿import wx
+﻿from pdb import set_trace
+import wx
 from cryptography.fernet import Fernet, InvalidToken
 from hashlib import sha256
 from base64 import b64encode
@@ -13,66 +14,48 @@ from configparser import ConfigParser
 from subprocess import check_output
 import accessible_output2.outputs.auto
 from time import sleep
-from pygame import mixer
-mixer.init()
-
-app= wx.App()
+# from pygame import mixer
+# mixer.init()
 
 # Sounds:
-ADD= mixer.Sound('sounds/add.ogg')
-RECYCLE= mixer.Sound('sounds/recycle.ogg')
-EXIT= mixer.Sound('sounds/exit.ogg')
-EXIT.set_volume(0.7)
-OK= mixer.Sound('sounds/ok.ogg')
+# ADD= mixer.Sound('sounds/add.ogg')
+# RECYCLE= mixer.Sound('sounds/recycle.ogg')
+# EXIT= mixer.Sound('sounds/exit.ogg')
+# EXIT.set_volume(0.7)
+# OK= mixer.Sound('sounds/ok.ogg')
 
 def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
 
 def getHash(string):
 	hash_obj= sha256(string.encode())
-	return b64encode(hash_obj.digest())
+	return hash_obj.digest()
 
-def encrypt(string):
-	try:
-		return cipher.encrypt(string.encode())
-	except InvalidToken as e:
-		wx.MessageDialog(None, 'Error de clave', '😟').ShowModal()
+class Crypto():
 
-def decrypt(value):
-	try:
-		return cipher.decrypt(value)
-	except InvalidToken as e:
-		wx.MessageDialog(None, 'Error de clave', '😟').ShowModal()
+	def __init__(self, password):
+		self.cipher= Fernet(password)
+
+	def encrypt(self, string):
+		try:
+			return self.cipher.encrypt(string.encode())
+		except InvalidToken as e:
+			wx.MessageDialog(None, 'Error de clave', '😟').ShowModal()
+
+	def decrypt(self, value):
+		try:
+			return self.cipher.decrypt(value)
+		except InvalidToken as e:
+			wx.MessageDialog(None, 'Error de clave', '😟').ShowModal()
 
 class Database():
-	def __init__(self, key_file_path):
-		self.key= self.getKey(key_file_path)
-		self.cipher= Fernet(self.key)
-		self.decrypt()
-		self.connect= connect('database-open')
+	def __init__(self):
+		self.connect= connect('crypto/db')
 		self.cursor= self.connect.cursor()
 		self.date= self.getDate()
 
-	def decrypt(self):
-		with open('database', 'rb') as encrypt_file:
-			content_c= encrypt_file.read()
-		content= self.cipher.decrypt(content_c)
-		with open('database-open', 'wb') as decrypt_file:
-			decrypt_file.write(content)
-			os.remove('database')
-
-	def encrypt(self, remove= True):
-		with open('database-open', 'rb') as decrypt_file:
-			content= decrypt_file.read()
-		content_c= self.cipher.encrypt(content)
-		with open('database', 'wb') as encrypt_file:
-			encrypt_file.write(content_c)
-			if remove:
-				self.connect.close()
-				os.remove('database-open')
-
 	def getRowList(self):
-		self.cursor.execute('SELECT * FROM passwords ORDER BY service')
+		self.cursor.execute('SELECT * FROM passwords')
 		row_list= self.cursor.fetchall()
 		return row_list
 
@@ -91,15 +74,6 @@ class Database():
 		date_format= f'{day}, {now.day}.{now.month}.{now.year}'
 		return date_format
 
-	def getKey(self, key_file_path):
-		try:
-			with open(key_file_path, 'rb') as key_file:
-				key= key_file.read()
-			return key
-		except FileNotFoundError:
-			print('no se encontró el archivo key')
-			return None
-
 class Main(wx.Frame):
 	def __init__(self, parent, title):
 		super().__init__(parent, title= title, size=(400, 300))
@@ -107,49 +81,41 @@ class Main(wx.Frame):
 		self.Centre()
 
 		if self.passVerify():
+			self.getDatabase()
 			self.InitUI()
 			self.Show()
 
 	def passVerify(self):
 		pass_dialog= PassDialog(self, 'Acceso', '&Ingresar')
 		pass_dialog.ShowModal()
-		if password == getHash(pass_dialog.password_field.GetValue()):
-			OK.play()
+		user= getHash(pass_dialog.password_field.GetValue())
+		if password == b64encode(user):
+			# OK.play()
 			return True
 		else:
 			wx.MessageDialog(None, 'Contraseña incorrecta', '👎').ShowModal()
 			self.Destroy()
 
 	def getDatabase(self):
-		if not os.path.exists('database'):
-			connection= connect('database-open')
+		if not os.path.exists('crypto/db'):
+			connection= connect('crypto/db')
 			cursor= connection.cursor()
-			cursor.execute('CREATE TABLE IF NOT EXISTS passwords (service TEXT, user TEXT, password TEXT, date TEXT, extra TEXT)')
+			cursor.execute('CREATE TABLE passwords(service BLOB, user BLOB, password BLOB, date BLOB, extra BLOB)')
 			connection.commit()
-			entities= ('ServicioDePrueba', 'NombreDeUsuario', 'MiContraseña', 'Sábado, 26.09.2015', 'DatosExtra')
+			entities= (crypto.encrypt('ServicioDePrueba'), crypto.encrypt('NombreDeUsuario'), crypto.encrypt('MiContraseña'), crypto.encrypt('Sábado, 26.09.2015'), crypto.encrypt('DatosExtra'))
 			cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
 			connection.commit()
 			connection.close()
-			self.encryptFile()
 			self.InitUI()
-			wx.MessageDialog(None, 'Proceso finalizado correctamente. No olvides tu contraseña, y recordá guardar el archivo clave en un lugar seguro', '✌').ShowModal()
+			# wx.MessageDialog(None, 'Proceso finalizado correctamente. No olvides tu contraseña, y recordá guardar el archivo clave en un lugar seguro', '✌').ShowModal()
 			self.Show()
-
-	def encryptFile(self):
-		cipher= Fernet(self.key_file_content)
-		with open('database-open', 'rb') as decrypt_file:
-			content= decrypt_file.read()
-		content_c= cipher.encrypt(content)
-		with open('database', 'wb') as encrypt_file:
-			encrypt_file.write(content_c)
-		os.remove('database-open')
 
 	def InitUI(self):
 		panel= wx.Panel(self)
 		vbox= wx.BoxSizer(wx.VERTICAL)
 
-		self.database= Database(self.key_file_path)
-		self.row_list= [row[0] for row in self.database.getRowList()]
+		self.database= Database()
+		self.row_list= [crypto.decrypt(row[0]).decode() for row in self.database.getRowList()]
 		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
 		if len(self.row_list) > 0:
@@ -193,7 +159,7 @@ class Main(wx.Frame):
 		panel.SetSizer(vbox)
 
 	def onExit(self, event):
-		EXIT.play()
+		# EXIT.play()
 		sleep(EXIT.get_length())
 		self.Destroy()
 
@@ -223,7 +189,7 @@ class Main(wx.Frame):
 		if current_selection != wx.NOT_FOUND:
 			self.row_list.pop(current_selection)
 			self.listbox.Delete(current_selection)
-			RECYCLE.play()
+			# RECYCLE.play()
 			if self.listbox.GetCount() < 1:
 				speak('Lista vacía')
 			elif current_selection > 0:
@@ -244,7 +210,7 @@ class Main(wx.Frame):
 			self.listbox.Clear()
 			self.listbox.InsertItems(self.row_list, 0)
 			self.listbox.SetStringSelection(service)
-			ADD.play()
+			# ADD.play()
 
 	def onExportDb(self, event):
 		self.database.encrypt(False)
@@ -290,7 +256,7 @@ class Main(wx.Frame):
 
 	def onClose(self, event):
 		self.database.encrypt()
-		EXIT.play()
+		# EXIT.play()
 		self.Close()
 
 	def onKeyDown(self, event):
@@ -305,9 +271,11 @@ class Main(wx.Frame):
 		elif event.ControlDown() and event.GetKeyCode() == 69:
 			speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
-			self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (self.listbox.GetStringSelection(),))
+			service_query= crypto.encrypt(self.listbox.GetStringSelection())
+			set_trace()
+			self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service_query,))
 			row_data= self.database.cursor.fetchall()[0]
-			DataDialog(self, row_data[0], row_data[0], row_data[1], row_data[2], row_data[3], row_data[4], False).ShowModal()
+			DataDialog(self, crypto.decrypt(row_data[0]), crypto.decrypt(row_data[0]), crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), crypto.decrypt(row_data[4]), False).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
 			self.onClose(event)
 		else:
@@ -398,9 +366,10 @@ class PassDialog(wx.Dialog):
 		if event.ControlDown() and event.GetKeyCode() == wx.EVT_TEXT_ENTER:
 			self.Close()
 
+app= wx.App()
 if os.path.exists('crypto/hash'):
 	with open('crypto/hash', 'rb') as file:
 		password= file.read()
-		cipher= Fernet(password)
+		crypto= Crypto(password)
 	Main(None, 'Gestor de contraseñas')
 	app.MainLoop()
