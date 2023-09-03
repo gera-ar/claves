@@ -14,15 +14,15 @@ from configparser import ConfigParser
 from subprocess import check_output
 import accessible_output2.outputs.auto
 from time import sleep
-# from pygame import mixer
-# mixer.init()
+from pygame import mixer
+mixer.init()
 
-# Sounds:
-# ADD= mixer.Sound('sounds/add.ogg')
-# RECYCLE= mixer.Sound('sounds/recycle.ogg')
-# EXIT= mixer.Sound('sounds/exit.ogg')
-# EXIT.set_volume(0.7)
-# OK= mixer.Sound('sounds/ok.ogg')
+#Sounds:
+ADD= mixer.Sound('sounds/add.ogg')
+RECYCLE= mixer.Sound('sounds/recycle.ogg')
+EXIT= mixer.Sound('sounds/exit.ogg')
+EXIT.set_volume(0.7)
+OK= mixer.Sound('sounds/ok.ogg')
 
 def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
@@ -65,7 +65,8 @@ class Database():
 		self.connect.commit()
 
 	def addRow(self, service, user, password, extra):
-		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
+		entities= (crypto.encrypt(service), crypto.encrypt(user), crypto.encrypt(password), crypto.encrypt(self.date), crypto.encrypt(extra))
+		self.cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?,?,?,?,?)', entities)
 		self.connect.commit()
 
 	def getDate(self):
@@ -90,7 +91,7 @@ class Main(wx.Frame):
 		pass_dialog.ShowModal()
 		user= getHash(pass_dialog.password_field.GetValue())
 		if password == b64encode(user):
-			# OK.play()
+			OK.play()
 			return True
 		else:
 			wx.MessageDialog(None, 'Contraseña incorrecta', '👎').ShowModal()
@@ -160,7 +161,7 @@ class Main(wx.Frame):
 		panel.SetSizer(vbox)
 
 	def onExit(self, event):
-		# EXIT.play()
+		EXIT.play()
 		sleep(EXIT.get_length())
 		self.Destroy()
 
@@ -191,7 +192,7 @@ class Main(wx.Frame):
 		if current_selection != wx.NOT_FOUND:
 			self.row_list.pop(current_selection)
 			self.listbox.Delete(current_selection)
-			# RECYCLE.play()
+			RECYCLE.play()
 			if self.listbox.GetCount() < 1:
 				speak('Lista vacía')
 			elif current_selection > 0:
@@ -212,7 +213,8 @@ class Main(wx.Frame):
 			self.listbox.Clear()
 			self.listbox.InsertItems(self.row_list, 0)
 			self.listbox.SetStringSelection(service)
-			# ADD.play()
+			self.data= self.database.getRowList()
+			ADD.play()
 
 	def onExportDb(self, event):
 		self.database.encrypt(False)
@@ -257,7 +259,6 @@ class Main(wx.Frame):
 			wx.MessageDialog(None, 'Contraseña cambiada exitosamente', '👍').ShowModal()
 
 	def onClose(self, event):
-		self.database.encrypt()
 		# EXIT.play()
 		self.Close()
 
@@ -281,7 +282,6 @@ class Main(wx.Frame):
 			self.onClose(event)
 		else:
 			event.Skip()
-			# print(event.GetKeyCode())
 
 	def getValue(self, service, column):
 		query= f'SELECT {column} FROM passwords WHERE service=?'
