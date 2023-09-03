@@ -77,9 +77,9 @@ class Database():
 class Main(wx.Frame):
 	def __init__(self, parent, title):
 		super().__init__(parent, title= title, size=(400, 300))
-
+		self.data= None
 		self.Centre()
-
+		
 		if self.passVerify():
 			self.getDatabase()
 			self.InitUI()
@@ -100,7 +100,7 @@ class Main(wx.Frame):
 		if not os.path.exists('crypto/db'):
 			connection= connect('crypto/db')
 			cursor= connection.cursor()
-			cursor.execute('CREATE TABLE passwords(service BLOB, user BLOB, password BLOB, date BLOB, extra BLOB)')
+			cursor.execute('CREATE TABLE passwords(id INTEGER PRIMARY KEY AUTOINCREMENT, service BLOB, user BLOB, password BLOB, date BLOB, extra BLOB)')
 			connection.commit()
 			entities= (crypto.encrypt('ServicioDePrueba'), crypto.encrypt('NombreDeUsuario'), crypto.encrypt('MiContraseña'), crypto.encrypt('Sábado, 26.09.2015'), crypto.encrypt('DatosExtra'))
 			cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
@@ -115,7 +115,8 @@ class Main(wx.Frame):
 		vbox= wx.BoxSizer(wx.VERTICAL)
 
 		self.database= Database()
-		self.row_list= [crypto.decrypt(row[0]).decode() for row in self.database.getRowList()]
+		self.data= self.database.getRowList()
+		self.row_list= [crypto.decrypt(row[1]).decode() for row in self.data]
 		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
 		if len(self.row_list) > 0:
@@ -167,7 +168,8 @@ class Main(wx.Frame):
 		open_new_tab('instrucciones.html')
 
 	def onModify(self, event):
-		self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (self.listbox.GetStringSelection(),))
+		id= self.data(self.listbox.GetSelection())[0]
+		self.database.cursor.execute('SELECT * FROM passwords WHERE id=?', (id,))
 		row_data= self.database.cursor.fetchall()[0]
 		data_dialog= DataDialog(self, row_data[0], row_data[0], row_data[1], row_data[2], row_data[3], row_data[4], True)
 		if data_dialog.ShowModal() == wx.ID_OK:
@@ -271,11 +273,10 @@ class Main(wx.Frame):
 		elif event.ControlDown() and event.GetKeyCode() == 69:
 			speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
-			service_query= crypto.encrypt(self.listbox.GetStringSelection())
-			set_trace()
-			self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service_query,))
+			id= self.data[self.listbox.GetSelection()][0]
+			self.database.cursor.execute('SELECT * FROM passwords WHERE id=?', (id,))
 			row_data= self.database.cursor.fetchall()[0]
-			DataDialog(self, crypto.decrypt(row_data[0]), crypto.decrypt(row_data[0]), crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), crypto.decrypt(row_data[4]), False).ShowModal()
+			DataDialog(self, crypto.decrypt(row_data[1]), crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), crypto.decrypt(row_data[4]), crypto.decrypt(row_data[5]), False).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
 			self.onClose(event)
 		else:
