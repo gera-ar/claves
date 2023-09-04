@@ -55,17 +55,18 @@ class Database():
 		self.date= self.getDate()
 
 	def getRowList(self):
-		self.cursor.execute('SELECT * FROM passwords')
+		self.cursor.execute('SELECT * FROM passwords ORDER BY service ASC')
 		row_list= self.cursor.fetchall()
 		return row_list
 
 	def modifyRow(self, old_service, service, user, password, extra):
 		self.cursor.execute('DELETE from passwords where service=?', (old_service,))
-		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
+		self.connect.commit()
+		self.cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
 		self.connect.commit()
 
 	def addRow(self, service, user, password, extra):
-		entities= (crypto.encrypt(service), crypto.encrypt(user), crypto.encrypt(password), crypto.encrypt(self.date), crypto.encrypt(extra))
+		entities= (service, crypto.encrypt(user), crypto.encrypt(password), self.date, crypto.encrypt(extra))
 		self.cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?,?,?,?,?)', entities)
 		self.connect.commit()
 
@@ -103,12 +104,11 @@ class Main(wx.Frame):
 			cursor= connection.cursor()
 			cursor.execute('CREATE TABLE passwords(id INTEGER PRIMARY KEY AUTOINCREMENT, service BLOB, user BLOB, password BLOB, date BLOB, extra BLOB)')
 			connection.commit()
-			entities= (crypto.encrypt('ServicioDePrueba'), crypto.encrypt('NombreDeUsuario'), crypto.encrypt('MiContraseña'), crypto.encrypt('Sábado, 26.09.2015'), crypto.encrypt('DatosExtra'))
+			entities= ('ServicioDePrueba', crypto.encrypt('NombreDeUsuario'), crypto.encrypt('MiContraseña'), 'Sábado, 26.09.2015', crypto.encrypt('DatosExtra'))
 			cursor.execute('INSERT INTO passwords (service, user, password, date, extra) VALUES (?, ?, ?, ?, ?)', entities)
 			connection.commit()
 			connection.close()
 			self.InitUI()
-			# wx.MessageDialog(None, 'Proceso finalizado correctamente. No olvides tu contraseña, y recordá guardar el archivo clave en un lugar seguro', '✌').ShowModal()
 			self.Show()
 
 	def InitUI(self):
@@ -117,7 +117,7 @@ class Main(wx.Frame):
 
 		self.database= Database()
 		self.data= self.database.getRowList()
-		self.row_list= [crypto.decrypt(row[1]).decode() for row in self.data]
+		self.row_list= [row[1] for row in self.data]
 		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
 		if len(self.row_list) > 0:
@@ -169,15 +169,15 @@ class Main(wx.Frame):
 		open_new_tab('instrucciones.html')
 
 	def onModify(self, event):
-		id= self.data(self.listbox.GetSelection())[0]
-		self.database.cursor.execute('SELECT * FROM passwords WHERE id=?', (id,))
+		service= self.listbox.GetStringSelection()
+		self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
 		row_data= self.database.cursor.fetchall()[0]
-		data_dialog= DataDialog(self, row_data[0], row_data[0], row_data[1], row_data[2], row_data[3], row_data[4], True)
+		data_dialog= DataDialog(self, row_data[1], row_data[1], crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], crypto.decrypt(row_data[5]), True)
 		if data_dialog.ShowModal() == wx.ID_OK:
 			service= data_dialog.service_field.GetValue()
-			user= data_dialog.user_field.GetValue()
-			password= data_dialog.password_field.GetValue()
-			extra= data_dialog.extra_field.GetValue()
+			user= crypto.encrypt(data_dialog.user_field.GetValue())
+			password= crypto.encrypt(data_dialog.password_field.GetValue())
+			extra= crypto.encrypt(data_dialog.extra_field.GetValue())
 			self.database.modifyRow(self.listbox.GetStringSelection(), service, user, password, extra)
 			index= self.listbox.GetSelection()
 			self.listbox.Delete(index)
@@ -274,10 +274,10 @@ class Main(wx.Frame):
 		elif event.ControlDown() and event.GetKeyCode() == 69:
 			speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
-			id= self.data[self.listbox.GetSelection()][0]
-			self.database.cursor.execute('SELECT * FROM passwords WHERE id=?', (id,))
+			service= self.listbox.GetStringSelection()
+			self.database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
 			row_data= self.database.cursor.fetchall()[0]
-			DataDialog(self, crypto.decrypt(row_data[1]), crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), crypto.decrypt(row_data[4]), crypto.decrypt(row_data[5]), False).ShowModal()
+			DataDialog(self, row_data[1], row_data[1], crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], crypto.decrypt(row_data[5]), False).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
 			self.onClose(event)
 		else:
