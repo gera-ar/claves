@@ -114,7 +114,10 @@ class Main(wx.Frame):
 				wx.MessageDialog(None, 'La base de datos ha sido reseteada correctamente', '👍').ShowModal()
 			self.Destroy()
 			return False
-		user= getHash(pass_dialog.password_field.GetValue())
+		try:
+			user= getHash(pass_dialog.password_field.GetValue())
+		except RuntimeError:
+			return False
 		crypto= Crypto(b64encode(user))
 		database.cursor.execute('SELECT * FROM passwords')
 		if not crypto.decrypt(database.cursor.fetchall()[0][1]):
@@ -360,6 +363,7 @@ class DataDialog(wx.Dialog):
 class PassDialog(wx.Dialog):
 	def __init__(self, parent, title, static_value, ok_button, cancel_button):
 		super().__init__(parent, title=title)
+		self.parent= parent
 
 		panel = wx.Panel(self)
 		
@@ -368,6 +372,14 @@ class PassDialog(wx.Dialog):
 		
 		wx.Button(self, wx.ID_OK, ok_button)
 		wx.Button(self, wx.ID_CANCEL, cancel_button)
+		self.Bind(wx.EVT_CHAR_HOOK, self.on_key_press)
+
+	def on_key_press(self, event):
+		keycode = event.GetKeyCode()
+		if keycode == wx.WXK_ESCAPE:
+			self.parent.Destroy()
+		else:
+			event.Skip()
 
 app= wx.App()
 database= Database()
