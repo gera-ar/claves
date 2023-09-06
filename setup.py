@@ -244,15 +244,23 @@ class Main(wx.Frame):
 		self.Destroy()
 
 	def onChangePass(self, event):
-		pass_dialog= PassDialog(self, 'Cambiar contraseña', '&Guardar la nueva contraseña')
-		pass_dialog.ShowModal()
-		password= pass_dialog.password_field.GetValue().encode()
-		with open(self.key_file_path, 'rb') as key_file:
-			key= key_file.read()
-		cipher= Fernet(key)
-		password_c= cipher.encrypt(password)
-		with open('code', 'wb') as code_file:
-			code_file.write(password_c)
+		global crypto
+		pass_dialog= PassDialog(self, 'Cambiar la contraseña de acceso', 'Ingresa una nueva contraseña de acceso', '&Guardar y continuar', '&Cancelar')
+		question= pass_dialog.ShowModal()
+		if question == wx.ID_OK:
+			database.cursor.execute('SELECT * FROM passwords')
+			rows= database.cursor.fetchall()
+			new_hash= getHash(pass_dialog.password_field.GetValue())
+			new_crypto= Crypto(b64encode(new_hash))
+			database.cursor.execute('DELETE FROM passwords')
+			database.connect.commit()
+			for row in rows:
+				old_row= (row[0], crypto.decrypt(row[1]).decode(), crypto.decrypt(row[2]).decode(), row[3], crypto.decrypt(row[4]).decode())
+				new_row= (old_row[0], new_crypto.encrypt(old_row[1]), new_crypto.encrypt(old_row[2]), old_row[3], new_crypto.encrypt(old_row[4]))
+				database.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', new_row)
+				database.connect.commit()
+			database.connect.close()
+			self.Destroy()
 			wx.MessageDialog(None, 'Contraseña cambiada exitosamente', '👍').ShowModal()
 
 	def onClose(self, event):
