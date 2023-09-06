@@ -54,7 +54,7 @@ class Crypto():
 
 class Database():
 	def __init__(self):
-		self.connect= connect('crypto/database')
+		self.connect= connect('lib/database')
 		self.cursor= self.connect.cursor()
 		self.date= self.getDate()
 
@@ -230,7 +230,7 @@ class Main(wx.Frame):
 		save_dialog.SetFilename('database')
 		if save_dialog.ShowModal() == wx.ID_OK:
 			file_path= save_dialog.GetPath().replace('\\', '/')
-			copy('crypto/database', file_path)
+			copy('lib/database', file_path)
 			wx.MessageDialog(None, 'Base de datos exportada correctamente', '✌').ShowModal()
 
 	def onImportDb(self, event):
@@ -238,8 +238,8 @@ class Main(wx.Frame):
 		browse_file= wx.FileDialog(self, "Buscar el archivo base de datos")
 		if browse_file.ShowModal() == wx.ID_OK:
 			path= browse_file.GetPath()
-			os.remove('crypto/database')
-			copy(path, 'crypto/database')
+			os.remove('lib/database')
+			copy(path, 'lib/database')
 			wx.MessageDialog(None, 'Base de datos importada correctamente. Vuelve a ejecutar el programa', '✌').ShowModal()
 		self.Destroy()
 
@@ -290,9 +290,9 @@ class Main(wx.Frame):
 			event.Skip()
 
 	def getValue(self, service, column):
-		query= f'SELECT {column} FROM passwords WHERE service=?'
+		query= f'SELECT {column} FROM passwords WHERE service = ?'
 		database.cursor.execute(query, (service,))
-		value= database.cursor.fetchall()[0][0]
+		value= crypto.decrypt(database.cursor.fetchall()[0][0]).decode()
 		wx.TheClipboard.SetData(wx.TextDataObject(value))
 		wx.TheClipboard.Close()
 		speak('Copiado al portapapeles')
