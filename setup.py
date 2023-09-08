@@ -1,5 +1,4 @@
-﻿from pdb import set_trace
-import wx
+﻿import wx
 from cryptography.fernet import Fernet, InvalidToken
 from hashlib import sha256
 from base64 import b64encode
@@ -9,9 +8,6 @@ from shutil import copy
 from webbrowser import open_new_tab
 from string import ascii_letters, digits
 from random import sample, shuffle
-from datetime import datetime
-from configparser import ConfigParser
-from subprocess import check_output
 import accessible_output2.outputs.auto
 from time import sleep
 from pygame import mixer
@@ -56,29 +52,22 @@ class Database():
 	def __init__(self):
 		self.connect= connect('lib/database')
 		self.cursor= self.connect.cursor()
-		self.date= self.getDate()
 
 	def getRowList(self):
 		self.cursor.execute('SELECT * FROM passwords ORDER BY service ASC')
 		row_list= self.cursor.fetchall()
 		return row_list
 
-	def modifyRow(self, old_service, service, user, password, extra):
+	def modifyRow(self, old_service, service, user, password, extra, card):
 		self.cursor.execute('DELETE from passwords where service=?', (old_service,))
 		self.connect.commit()
-		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, self.date, extra))
+		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, extra, card))
 		self.connect.commit()
 
-	def addRow(self, service, user, password, extra):
-		entities= (service, crypto.encrypt(user), crypto.encrypt(password), self.date, crypto.encrypt(extra))
+	def addRow(self, service, user, password, extra, card):
+		entities= (service, crypto.encrypt(user), crypto.encrypt(password), crypto.encrypt(extra), card)
 		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', entities)
 		self.connect.commit()
-
-	def getDate(self):
-		day= ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][datetime.today().weekday()]
-		now= datetime.now()
-		date_format= f'{day}, {now.day}.{now.month}.{now.year}'
-		return date_format
 
 class Main(wx.Frame):
 	def __init__(self, parent, title):
@@ -98,7 +87,7 @@ class Main(wx.Frame):
 			if new_dialog.ShowModal() == wx.ID_OK:
 				new_pass= getHash(new_dialog.password_field.GetValue())
 				cipher= Fernet(b64encode(new_pass))
-				database.cursor.execute('INSERT INTO passwords VALUES(?,?,?,?,?)', ('Servicio de prueba', cipher.encrypt('gera.ar'.encode()), cipher.encrypt('1234'.encode()), 'Sábado 26.09.2015', cipher.encrypt('Datos extra'.encode())))
+				database.cursor.execute('INSERT INTO passwords VALUES(?,?,?,?,?)', ('Servicio de prueba', cipher.encrypt('gera.ar'.encode()), cipher.encrypt('1234'.encode()), cipher.encrypt('Datos extra'.encode()), 0))
 				database.connect.commit()
 				wx.MessageDialog(None, 'Clave guardada exitosamente. Reinicia el programa', '👍').ShowModal()
 				database.connect.close()
@@ -184,13 +173,13 @@ class Main(wx.Frame):
 		service= self.listbox.GetStringSelection()
 		database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
 		row_data= database.cursor.fetchall()[0]
-		data_dialog= DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), row_data[3], crypto.decrypt(row_data[4]), True)
+		data_dialog= DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], True)
 		if data_dialog.ShowModal() == wx.ID_OK:
 			service= data_dialog.service_field.GetValue()
 			user= crypto.encrypt(data_dialog.user_field.GetValue())
 			password= crypto.encrypt(data_dialog.password_field.GetValue())
 			extra= crypto.encrypt(data_dialog.extra_field.GetValue())
-			database.modifyRow(self.listbox.GetStringSelection(), service, user, password, extra)
+			database.modifyRow(self.listbox.GetStringSelection(), service, user, password, extra, row_data[4])
 			index= self.listbox.GetSelection()
 			self.listbox.Delete(index)
 			self.listbox.Insert(service, index)
@@ -215,11 +204,12 @@ class Main(wx.Frame):
 	def onAdd(self, event):
 		dialog= Dialog(self, 'Añadir elemento')
 		if dialog.ShowModal() == wx.ID_OK:
+			card= int(dialog.card_check_box.GetValue())
 			service= dialog.service_field.GetValue()
 			user= dialog.user_field.GetValue()
 			password= dialog.pass_field.GetValue()
 			extra= dialog.extra_field.GetValue()
-			database.addRow(service, user, password, extra)
+			database.addRow(service, user, password, extra, card)
 			self.row_list.append(service)
 			self.row_list.sort()
 			self.listbox.Clear()
@@ -258,8 +248,8 @@ class Main(wx.Frame):
 			database.cursor.execute('DELETE FROM passwords')
 			database.connect.commit()
 			for row in rows:
-				old_row= (row[0], crypto.decrypt(row[1]).decode(), crypto.decrypt(row[2]).decode(), row[3], crypto.decrypt(row[4]).decode())
-				new_row= (old_row[0], new_crypto.encrypt(old_row[1]), new_crypto.encrypt(old_row[2]), old_row[3], new_crypto.encrypt(old_row[4]))
+				old_row= (row[0], crypto.decrypt(row[1]).decode(), crypto.decrypt(row[2]).decode(), crypto.decrypt(row[3]).decode(), row[4])
+				new_row= (old_row[0], new_crypto.encrypt(old_row[1]), new_crypto.encrypt(old_row[2]), new_crypto.encrypt(old_row[3]), old_row[4])
 				database.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', new_row)
 				database.connect.commit()
 			database.connect.close()
@@ -267,9 +257,10 @@ class Main(wx.Frame):
 			wx.MessageDialog(None, 'Contraseña cambiada exitosamente', '👍').ShowModal()
 
 	def onClose(self, event):
-		# EXIT.play()
+		EXIT.play()
 		database.connect.close()
 		self.Destroy()
+		sleep(0.1)
 
 	def onKeyDown(self, event):
 		if event.GetKeyCode() == wx.WXK_DELETE:
@@ -286,7 +277,7 @@ class Main(wx.Frame):
 			service= self.listbox.GetStringSelection()
 			database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
 			row_data= database.cursor.fetchall()[0]
-			DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), row_data[3], crypto.decrypt(row_data[4]), False).ShowModal()
+			DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), False, row_data[4]).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
 			self.onClose(event)
 		else:
@@ -305,18 +296,20 @@ class Dialog(wx.Dialog):
 		super().__init__(parent, title= title)
 
 		Panel= wx.Panel(self)
-		wx.StaticText(Panel, wx.ID_ANY, "Servicio")
+		self.card_check_box= wx.CheckBox(Panel, label='&Tarjeta')
+		self.card_check_box.Bind(wx.EVT_CHECKBOX, self.onCard)
+		self.service_name= wx.StaticText(Panel, wx.ID_ANY, "Servicio")
 		self.service_field= wx.TextCtrl(Panel, wx.ID_ANY, "")
 		
-		wx.StaticText(Panel, wx.ID_ANY, "Usuario")
+		self.user_number= wx.StaticText(Panel, wx.ID_ANY, "Usuario")
 		self.user_field= wx.TextCtrl(Panel, wx.ID_ANY, "")
 		
-		wx.StaticText(Panel, wx.ID_ANY, u"Contraseña")
+		self.password_expiration= wx.StaticText(Panel, wx.ID_ANY, u"Contraseña")
 		self.pass_field= wx.TextCtrl(Panel, wx.ID_ANY, "")
 		self.random_button= wx.Button(Panel, label='&Crear contraseña aleatoria')
 		self.random_button.Bind(wx.EVT_BUTTON, self.onRandomPass)
 
-		wx.StaticText(Panel, wx.ID_ANY, "Extra")
+		self.extra_key= wx.StaticText(Panel, wx.ID_ANY, "Extra")
 		self.extra_field= wx.TextCtrl(Panel, wx.ID_ANY, "")
 
 		self.ok_button= wx.Button(self, wx.ID_OK, "&Guardar")
@@ -326,6 +319,21 @@ class Dialog(wx.Dialog):
 		self.SetAffirmativeId(self.ok_button.GetId())
 		self.SetEscapeId(self.cancel_button.GetId())
 
+	def onCard(self, event):
+		if self.card_check_box.IsChecked():
+			self.random_button.Hide()
+			self.service_name.SetLabel('Nombre de tarjeta')
+			self.user_number.SetLabel('Número de tarjeta')
+			self.password_expiration.SetLabel('Fecha de vencimiento')
+			self.extra_key.SetLabel('Clave')
+		else:
+			self.random_button.Show()
+			self.service_name.SetLabel('Servicio')
+			self.user_number.SetLabel('Usuario')
+			self.password_expiration.SetLabel('Contraseña')
+			self.extra_key.SetLabel('Datos extra')
+
+	
 	def onRandomPass(self, event):
 		chars= list(ascii_letters+digits)
 		password= ''.join(sample(chars, 12))
@@ -333,25 +341,22 @@ class Dialog(wx.Dialog):
 		self.pass_field.SetFocus()
 
 class DataDialog(wx.Dialog):
-	def __init__(self, parent, title, service, user, password, date, extra, text_button_save):
+	def __init__(self, parent, title, service, user, password, extra, text_button_save, card):
 		super().__init__(parent, title=title)
 
 		panel = wx.Panel(self)
 		
-		wx.StaticText(panel, label="Servicio:")
+		wx.StaticText(panel, label='Nombre de tarjeta:' if card else 'Servicio:')
 		self.service_field= wx.TextCtrl(panel, value=service)
 
-		wx.StaticText(panel, label="Usuario:")
+		wx.StaticText(panel, label='Número de tarjeta:' if card else 'Nombre de usuario:')
 		self.user_field= wx.TextCtrl(panel, value=user)
 		
-		wx.StaticText(panel, label="Contraseña:")
+		wx.StaticText(panel, label='Fecha de vencimiento:' if card else 'Contraseña:')
 		self.password_field= wx.TextCtrl(panel, value=password)
 		self.user_field.SetFocus()
 		
-		wx.StaticText(panel, label="Fecha:")
-		self.date_field= wx.TextCtrl(panel, value=date)
-		
-		wx.StaticText(panel, label="Datos extra:")
+		wx.StaticText(panel, label='Clave:' if card else 'Datos extra:')
 		self.extra_field= wx.TextCtrl(panel, value=extra)
 		
 		if text_button_save:
