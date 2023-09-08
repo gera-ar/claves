@@ -277,7 +277,7 @@ class Main(wx.Frame):
 			service= self.listbox.GetStringSelection()
 			database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
 			row_data= database.cursor.fetchall()[0]
-			DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), False, row_data[4]).ShowModal()
+			DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], False).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
 			self.onClose(event)
 		else:
@@ -341,7 +341,7 @@ class Dialog(wx.Dialog):
 		self.pass_field.SetFocus()
 
 class DataDialog(wx.Dialog):
-	def __init__(self, parent, title, service, user, password, extra, text_button_save, card):
+	def __init__(self, parent, title, service, user, password, extra, card, text_button_save):
 		super().__init__(parent, title=title)
 
 		panel = wx.Panel(self)
