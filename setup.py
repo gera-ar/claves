@@ -167,7 +167,7 @@ class Main(wx.Frame):
 		self.Destroy()
 
 	def onDocumentation(self, event):
-		open_new_tab('lib/instrucciones.html')
+		open_new_tab('instrucciones.html')
 
 	def onModify(self, event):
 		service= self.listbox.GetStringSelection()
