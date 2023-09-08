@@ -83,7 +83,7 @@ class Main(wx.Frame):
 		global crypto
 		database.cursor.execute('SELECT * FROM passwords')
 		if len(database.cursor.fetchall()) == 0:
-			new_dialog= PassDialog(self, 'Registrar contraseña de acceso', 'Ingresa una contraseña de acceso', '&Guardar y continuar', '&Cancelar')
+			new_dialog= PassDialog(self, 'Registrar contraseña de acceso', 'Ingresa una contraseña de acceso', '&Guardar y continuar', '&Cancelar', False)
 			if new_dialog.ShowModal() == wx.ID_OK:
 				new_pass= getHash(new_dialog.password_field.GetValue())
 				cipher= Fernet(b64encode(new_pass))
@@ -93,7 +93,7 @@ class Main(wx.Frame):
 				database.connect.close()
 			self.Destroy()
 			return
-		pass_dialog= PassDialog(self, 'Acceso', 'Ingresa la contraseña:', '&Ingresar', '&Resetear la base de datos')
+		pass_dialog= PassDialog(self, 'Acceso', 'Ingresa la contraseña:', '&Ingresar', '&Resetear la base de datos', True)
 		login= pass_dialog.ShowModal()
 		if login == wx.ID_CANCEL:
 			if wx.MessageDialog(None, '¿Seguro que quieres resetear la base de datos?', 'Atención', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION).ShowModal() == wx.ID_YES:
@@ -238,7 +238,7 @@ class Main(wx.Frame):
 
 	def onChangePass(self, event):
 		global crypto
-		pass_dialog= PassDialog(self, 'Cambiar la contraseña de acceso', 'Ingresa una nueva contraseña de acceso', '&Guardar y continuar', '&Cancelar')
+		pass_dialog= PassDialog(self, 'Cambiar la contraseña de acceso', 'Ingresa una nueva contraseña de acceso', '&Guardar y continuar', '&Cancelar', False)
 		question= pass_dialog.ShowModal()
 		if question == wx.ID_OK:
 			database.cursor.execute('SELECT * FROM passwords')
@@ -366,18 +366,24 @@ class DataDialog(wx.Dialog):
 			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
 
 class PassDialog(wx.Dialog):
-	def __init__(self, parent, title, static_value, ok_button, cancel_button):
+	def __init__(self, parent, title, static_value, ok_button, cancel_button, password_hide):
 		super().__init__(parent, title=title)
 		self.parent= parent
 
 		panel = wx.Panel(self)
-		
 		wx.StaticText(panel, label=static_value)
-		self.password_field= wx.TextCtrl(panel)
+		if password_hide:
+			self.password_field= wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER | wx.TE_PASSWORD)
+		else:
+			self.password_field= wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+		self.password_field.Bind(wx.EVT_TEXT_ENTER, self.onEnter)
 		
 		wx.Button(self, wx.ID_OK, ok_button)
 		wx.Button(self, wx.ID_CANCEL, cancel_button)
 		self.Bind(wx.EVT_CHAR_HOOK, self.on_key_press)
+
+	def onEnter(self, event):
+		self.EndModal(wx.ID_OK)
 
 	def on_key_press(self, event):
 		keycode = event.GetKeyCode()

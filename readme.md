@@ -1,14 +1,20 @@
-﻿# Keys
+﻿# Claves
 
 [Gerardo Kessler](http://gera.ar)  
 
 Este programa es un gestor de contraseñas sencillo para Windows programado en [Python](https://python.org)  
 
-La seguridad se basa en la encriptación de la base de datos a través de un archivo clave único. No tiene conexión a internet, por lo que los datos solo se almacenan de forma local para evitar una posible pérdida de datos.
+La seguridad se basa en la encriptación de los datos almacenados en la base de datos a través de un objeto clave creado a partir del hash de una contraseña.
 
 ## Primera ejecución
 
-En el primer ingreso se solicita una contraseña de acceso. Esta debe ser segura y fácil de recordar ya que los datos se encriptan basados en la misma. Sin ella no se puede acceder a la base de datos.
+En el primer ingreso se solicita una contraseña de acceso. Esta debe ser segura y fácil de recordar ya que los datos se encriptan basados en la misma, y sin ella no se puede acceder a los datos almacenados.
+
+## Diálogo de contraseña
+
+En este diálogo inicial se solicita la contraseña configurada en la primera ejecución. Al pulsar intro o el botón ingresar se procede a la verificación.
+Si la contraseña es la correcta se muestra la interfaz principal, de lo contrario se muestra un mensaje de error.  
+A parte del botón ingresar también se encuentra un botón que permite resetear la base de datos para comenzar desde 0.
 
 ## Descripción de la interfaz
 
@@ -26,8 +32,8 @@ Tabulando aparecen los botones para las diferentes acciones:
 Desde la lista tenemos algunos comandos, a saber:
 
 * Suprimir; Elimina el elemento enfocado en la lista.
-* Control + c; Copia la contraseña del elemento enfocado al portapapeles.
-* Control + u; Copia el nombre de usuario del elemento seleccionado al portapapeles.
+* Control + c; Copia la contraseña o fecha de vencimiento del elemento enfocado al portapapeles.
+* Control + u; Copia el nombre de usuario o número de tarjeta del elemento seleccionado al portapapeles.
 * Control + e; Verbaliza la posición actual y el total de entradas en la lista.
 * Barra espaciadora; Activa una ventana donde se muestran los datos ingresados en los diferentes campos. (No editable).
 * Escape; Cierra el programa.
