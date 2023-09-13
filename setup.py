@@ -1,6 +1,7 @@
 ﻿import wx
 from cryptography.fernet import Fernet, InvalidToken
-from hashlib import sha256
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 from base64 import b64encode
 from sqlite3 import connect
 import os
@@ -26,8 +27,9 @@ def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
 
 def getHash(string):
-	hash_obj= sha256(string.encode())
-	return hash_obj.digest()
+	hash_obj= hashes.Hash(hashes.SHA256(), backend= default_backend())
+	hash_obj.update(string.encode())
+	return hash_obj.finalize()
 
 class Crypto():
 
