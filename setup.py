@@ -410,6 +410,7 @@ class PassDialog(wx.Dialog):
 		keycode = event.GetKeyCode()
 		if keycode == wx.WXK_ESCAPE:
 			self.Destroy()
+			self.parent.Destroy()
 		else:
 			event.Skip()
 
