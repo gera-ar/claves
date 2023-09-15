@@ -354,39 +354,37 @@ class DataDialog(wx.Dialog):
 		
 		panel = wx.Panel(self)
 		
-		if card:
-			wx.StaticText(panel, label='Nombre de tarjeta:')
+		if not text_button_save:
+			wx.StaticText(panel, label='Nombre de tarjeta:' if card else 'Servicio:')
 			self.service_field= wx.TextCtrl(panel, value=service, style=wx.TE_READONLY | wx.TE_MULTILINE)
 			
-			wx.StaticText(panel, label='Número de tarjeta:')
+			wx.StaticText(panel, label='Número de tarjeta:' if card else 'Usuario:')
 			self.user_field= wx.TextCtrl(panel, value=user, style=wx.TE_READONLY | wx.TE_MULTILINE)
 			
-			wx.StaticText(panel, label='Fecha de vencimiento:')
+			wx.StaticText(panel, label='Fecha de vencimiento:' if card else 'Contraseña:')
 			self.password_field= wx.TextCtrl(panel, value=password, style=wx.TE_READONLY | wx.TE_MULTILINE)
 			self.user_field.SetFocus()
 			
-			wx.StaticText(panel, label='Clave:')
+			wx.StaticText(panel, label='Clave:' if card else 'Datos extra:')
 			self.extra_field= wx.TextCtrl(panel, value=extra, style=wx.TE_READONLY | wx.TE_MULTILINE)
+			
+			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
 		else:
-			wx.StaticText(panel, label='Servicio:')
+			wx.StaticText(panel, label='Nombre de tarjeta:' if card else 'Servicio:')
 			self.service_field= wx.TextCtrl(panel, value=service)
 			
-			wx.StaticText(panel, label='Usuario:')
+			wx.StaticText(panel, label='Número de tarjeta:' if card else 'Usuario:')
 			self.user_field= wx.TextCtrl(panel, value=user)
 			
-			wx.StaticText(panel, label='Contraseña:')
+			wx.StaticText(panel, label='Fecha de vencimiento:' if card else 'Contraseña:')
 			self.password_field= wx.TextCtrl(panel, value=password)
 			self.user_field.SetFocus()
 			
-			wx.StaticText(panel, label='Datos extra:')
+			wx.StaticText(panel, label='Clave:' if card else 'Datos extra:')
 			self.extra_field= wx.TextCtrl(panel, value=extra)
 			
-
-		if text_button_save:
 			wx.Button(self, wx.ID_OK, "&Guardar los cambios")
 			wx.Button(self, wx.ID_CANCEL, "&Descartar los cambios")
-		else:
-			ok_button= wx.Button(self, wx.ID_OK, "&Cerrar")
 
 class PassDialog(wx.Dialog):
 	def __init__(self, parent, title, static_value, ok_button, cancel_button, password_hide):
