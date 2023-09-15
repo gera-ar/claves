@@ -409,7 +409,7 @@ class PassDialog(wx.Dialog):
 	def on_key_press(self, event):
 		keycode = event.GetKeyCode()
 		if keycode == wx.WXK_ESCAPE:
-			self.parent.Destroy()
+			self.Destroy()
 		else:
 			event.Skip()
 
