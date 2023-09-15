@@ -390,6 +390,7 @@ class PassDialog(wx.Dialog):
 	def __init__(self, parent, title, static_value, ok_button, cancel_button, password_hide):
 		super().__init__(parent, title=title)
 		self.parent= parent
+		self.password_hide= password_hide
 
 		panel = wx.Panel(self)
 		wx.StaticText(panel, label=static_value)
@@ -407,10 +408,10 @@ class PassDialog(wx.Dialog):
 		self.EndModal(wx.ID_OK)
 
 	def on_key_press(self, event):
-		keycode = event.GetKeyCode()
-		if keycode == wx.WXK_ESCAPE:
-			self.Destroy()
-			self.parent.Destroy()
+		if event.GetKeyCode() == wx.WXK_ESCAPE:
+			if self.password_hide:
+				self.Destroy()
+				self.parent.Destroy()
 		else:
 			event.Skip()
 
