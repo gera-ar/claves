@@ -178,6 +178,9 @@ class Main(wx.Frame):
 		data_dialog= DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], True)
 		if data_dialog.ShowModal() == wx.ID_OK:
 			service= data_dialog.service_field.GetValue()
+			if service == '':
+				wx.MessageDialog(None, 'El primer campo no puede quedar vacío. Proceso cancelado', 'Error:').ShowModal()
+				return
 			user= crypto.encrypt(data_dialog.user_field.GetValue())
 			password= crypto.encrypt(data_dialog.password_field.GetValue())
 			extra= crypto.encrypt(data_dialog.extra_field.GetValue())
@@ -208,6 +211,9 @@ class Main(wx.Frame):
 		if dialog.ShowModal() == wx.ID_OK:
 			card= int(dialog.card_check_box.GetValue())
 			service= dialog.service_field.GetValue()
+			if service == '':
+				wx.MessageDialog(None, f'El campo {"Tarjeta" if card else "Servicio"} no puede quedar vacío', 'Error:').ShowModal()
+				return
 			user= dialog.user_field.GetValue()
 			password= dialog.pass_field.GetValue()
 			extra= dialog.extra_field.GetValue()
@@ -345,22 +351,37 @@ class Dialog(wx.Dialog):
 class DataDialog(wx.Dialog):
 	def __init__(self, parent, title, service, user, password, extra, card, text_button_save):
 		super().__init__(parent, title=title)
-
+		
 		panel = wx.Panel(self)
 		
-		wx.StaticText(panel, label='Nombre de tarjeta:' if card else 'Servicio:')
-		self.service_field= wx.TextCtrl(panel, value=service)
+		if card:
+			wx.StaticText(panel, label='Nombre de tarjeta:')
+			self.service_field= wx.TextCtrl(panel, value=service, style=wx.TE_READONLY | wx.TE_MULTILINE)
+			
+			wx.StaticText(panel, label='Número de tarjeta:')
+			self.user_field= wx.TextCtrl(panel, value=user, style=wx.TE_READONLY | wx.TE_MULTILINE)
+			
+			wx.StaticText(panel, label='Fecha de vencimiento:')
+			self.password_field= wx.TextCtrl(panel, value=password, style=wx.TE_READONLY | wx.TE_MULTILINE)
+			self.user_field.SetFocus()
+			
+			wx.StaticText(panel, label='Clave:')
+			self.extra_field= wx.TextCtrl(panel, value=extra, style=wx.TE_READONLY | wx.TE_MULTILINE)
+		else:
+			wx.StaticText(panel, label='Servicio:')
+			self.service_field= wx.TextCtrl(panel, value=service)
+			
+			wx.StaticText(panel, label='Usuario:')
+			self.user_field= wx.TextCtrl(panel, value=user)
+			
+			wx.StaticText(panel, label='Contraseña:')
+			self.password_field= wx.TextCtrl(panel, value=password)
+			self.user_field.SetFocus()
+			
+			wx.StaticText(panel, label='Datos extra:')
+			self.extra_field= wx.TextCtrl(panel, value=extra)
+			
 
-		wx.StaticText(panel, label='Número de tarjeta:' if card else 'Nombre de usuario:')
-		self.user_field= wx.TextCtrl(panel, value=user)
-		
-		wx.StaticText(panel, label='Fecha de vencimiento:' if card else 'Contraseña:')
-		self.password_field= wx.TextCtrl(panel, value=password)
-		self.user_field.SetFocus()
-		
-		wx.StaticText(panel, label='Clave:' if card else 'Datos extra:')
-		self.extra_field= wx.TextCtrl(panel, value=extra)
-		
 		if text_button_save:
 			wx.Button(self, wx.ID_OK, "&Guardar los cambios")
 			wx.Button(self, wx.ID_CANCEL, "&Descartar los cambios")
