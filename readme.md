@@ -4,7 +4,7 @@
 
 Este programa es un gestor de contraseñas sencillo para Windows programado en [Python](https://python.org)  
 
-La seguridad se basa en la encriptación de los datos almacenados en la base de datos a través de un objeto clave creado a partir del hash de una contraseña.
+La seguridad se basa en el cifrado simétrico de los datos almacenados en la base de datos partiendo del hash de una contraseña personal del usuario.
 
 ## Primera ejecución
 
@@ -14,7 +14,7 @@ En el primer ingreso se solicita una contraseña de acceso. Esta debe ser segura
 
 En este diálogo inicial se solicita la contraseña configurada en la primera ejecución. Al pulsar intro o el botón ingresar se procede a la verificación.
 Si la contraseña es la correcta se muestra la interfaz principal, de lo contrario se muestra un mensaje de error.  
-A parte del botón ingresar también se encuentra un botón que permite resetear la base de datos para comenzar desde 0.
+A parte del botón ingresar también se encuentra un botón que permite resetear la base de datos para comenzar el proceso desde 0.
 
 ## Descripción de la interfaz
 
