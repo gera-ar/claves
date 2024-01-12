@@ -6,6 +6,7 @@ from base64 import b64encode
 from sqlite3 import connect
 import os
 from shutil import copy
+import psutil
 from webbrowser import open_new_tab
 from string import ascii_letters, digits
 from random import sample, shuffle
@@ -23,9 +24,21 @@ OK= mixer.Sound('sounds/ok.ogg')
 
 crypto= None
 
+# Función que verifica si el proceso tiene otras instancias abiertas, cerrando las que no coinciden con el pid del actual
+def processVerify():
+	pid= os.getpid()
+	process_name= psutil.Process().name()
+	similar_processes= [p for p in psutil.process_iter() if p.name() == process_name]
+	
+	for sp in similar_processes:
+		if sp.pid != pid:
+			sp.terminate()
+
+# Función para la verbalización de mensajes a través de la api de accesibilidad
 def speak(message):
 	accessible_output2.outputs.auto.Auto().speak(message)
 
+# Función que devuelve el hash de una cadena
 def getHash(string):
 	hash_obj= hashes.Hash(hashes.SHA256(), backend= default_backend())
 	hash_obj.update(string.encode())
@@ -414,6 +427,8 @@ class PassDialog(wx.Dialog):
 				self.parent.Destroy()
 		else:
 			event.Skip()
+
+processVerify()
 
 app= wx.App()
 database= Database()
