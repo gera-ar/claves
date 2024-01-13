@@ -5,6 +5,9 @@ from cryptography.hazmat.primitives import hashes
 from base64 import b64encode
 from sqlite3 import connect
 import os
+import winshell
+import sys
+from win32com.client import Dispatch
 from shutil import copy
 import psutil
 from webbrowser import open_new_tab
@@ -94,10 +97,26 @@ class Main(wx.Frame):
 			self.InitUI()
 			self.Show()
 
+	def verifyShortcut(self):
+		desktop= winshell.desktop()
+		message= '¿Crear un acceso directo al programa en el escritorio llamado claves?'
+		dlg= wx.MessageDialog(None, f'{desktop}\\claves', message, wx.YES_NO | wx.ICON_QUESTION)
+		if dlg.ShowModal() == wx.ID_YES:
+			path= os.path.join(desktop, 'claves.lnk')
+			target= os.path.abspath(sys.argv[0])
+			wDir= os.getcwd()
+			shell = Dispatch('WScript.Shell')
+			shortcut = shell.CreateShortCut(path)
+			shortcut.Targetpath = target
+			shortcut.WorkingDirectory= wDir
+			# shortcut.IconLocation= target
+			shortcut.save()
+
 	def passVerify(self):
 		global crypto
 		database.cursor.execute('SELECT * FROM passwords')
 		if len(database.cursor.fetchall()) == 0:
+			self.verifyShortcut()
 			new_dialog= PassDialog(self, 'Registrar contraseña de acceso', 'Ingresa una contraseña de acceso', '&Guardar y continuar', '&Cancelar', False)
 			if new_dialog.ShowModal() == wx.ID_OK:
 				new_pass= getHash(new_dialog.password_field.GetValue())
