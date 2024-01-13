@@ -1,11 +1,11 @@
 ﻿import wx
+import ctypes
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from base64 import b64encode
 from sqlite3 import connect
 import os
-import winshell
 import sys
 from win32com.client import Dispatch
 from shutil import copy
@@ -13,7 +13,6 @@ import psutil
 from webbrowser import open_new_tab
 from string import ascii_letters, digits
 from random import sample, shuffle
-import accessible_output2.outputs.auto
 from time import sleep
 from pygame import mixer
 mixer.init()
@@ -26,6 +25,12 @@ EXIT.set_volume(0.7)
 OK= mixer.Sound('sounds/ok.ogg')
 
 crypto= None
+nvda= ctypes.WinDLL('lib/nvda.dll')
+# Capturamos el error si JAWS no está instalado en el sistema
+try:
+	jaws= Dispatch('freedomSci.jawsApi')
+except pywintypes.com_error:
+	jaws= None
 
 # Función que verifica si el proceso tiene otras instancias abiertas, cerrando las que no coinciden con el pid del actual
 def processVerify():
@@ -37,9 +42,12 @@ def processVerify():
 		if sp.pid != pid:
 			sp.terminate()
 
-# Función para la verbalización de mensajes a través de la api de accesibilidad
+# Función para la verbalización de mensajes a través de NVDA o JAWS
 def speak(message):
-	accessible_output2.outputs.auto.Auto().speak(message)
+	wstr = ctypes.c_wchar_p(message)
+	nvda.nvdaController_speakText(wstr)
+	if jaws:
+		jaws.SayString(message)
 
 # Función que devuelve el hash de una cadena
 def getHash(string):
@@ -98,7 +106,8 @@ class Main(wx.Frame):
 			self.Show()
 
 	def verifyShortcut(self):
-		desktop= winshell.desktop()
+		if os.path.exists(os.path.join(os.environ['USERPROFILE'], 'Desktop', 'claves.lnk')): return
+		desktop= os.path.join(os.environ['USERPROFILE'], 'Desktop')
 		message= '¿Crear un acceso directo al programa en el escritorio llamado claves?'
 		dlg= wx.MessageDialog(None, f'{desktop}\\claves', message, wx.YES_NO | wx.ICON_QUESTION)
 		if dlg.ShowModal() == wx.ID_YES:
