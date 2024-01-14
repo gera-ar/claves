@@ -1,5 +1,5 @@
 ﻿import wx
-import ctypes
+import accessible_output2.outputs.auto
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -25,13 +25,7 @@ EXIT.set_volume(0.7)
 OK= mixer.Sound('sounds/ok.ogg')
 
 crypto= None
-nvda= ctypes.WinDLL('lib/nvda.dll')
-# Capturamos el error si JAWS no está instalado en el sistema
-try:
-	jaws= Dispatch('freedomSci.jawsApi')
-except pywintypes.com_error:
-	jaws= None
-
+output= accessible_output2.outputs.auto.Auto()
 # Función que verifica si el proceso tiene otras instancias abiertas, cerrando las que no coinciden con el pid del actual
 def processVerify():
 	pid= os.getpid()
@@ -44,10 +38,7 @@ def processVerify():
 
 # Función para la verbalización de mensajes a través de NVDA o JAWS
 def speak(message):
-	wstr = ctypes.c_wchar_p(message)
-	nvda.nvdaController_speakText(wstr)
-	if jaws:
-		jaws.SayString(message)
+	output.speak(message)
 
 # Función que devuelve el hash de una cadena
 def getHash(string):
@@ -76,7 +67,7 @@ class Crypto():
 
 class Database():
 	def __init__(self):
-		self.connect= connect('lib/database')
+		self.connect= connect('_internal/database')
 		self.cursor= self.connect.cursor()
 
 	def getRowList(self):
@@ -274,7 +265,7 @@ class Main(wx.Frame):
 		save_dialog.SetFilename('database')
 		if save_dialog.ShowModal() == wx.ID_OK:
 			file_path= save_dialog.GetPath().replace('\\', '/')
-			copy('lib/database', file_path)
+			copy('_internal/database', file_path)
 			wx.MessageDialog(None, 'Base de datos exportada correctamente', '✌').ShowModal()
 
 	def onImportDb(self, event):
@@ -282,8 +273,8 @@ class Main(wx.Frame):
 		browse_file= wx.FileDialog(self, "Buscar el archivo base de datos")
 		if browse_file.ShowModal() == wx.ID_OK:
 			path= browse_file.GetPath()
-			os.remove('lib/database')
-			copy(path, 'lib/database')
+			os.remove('_internal/database')
+			copy(path, '_internal/database')
 			wx.MessageDialog(None, 'Base de datos importada correctamente. Vuelve a ejecutar el programa', '✌').ShowModal()
 		self.Destroy()
 
