@@ -108,18 +108,20 @@ class Main(wx.Frame):
 	def verifyShortcut(self):
 		if os.path.exists(os.path.join(os.environ['USERPROFILE'], 'Desktop', 'claves.lnk')): return
 		desktop= os.path.join(os.environ['USERPROFILE'], 'Desktop')
-		message= '¿Crear un acceso directo al programa en el escritorio llamado claves?'
+		message= '¿Crear un acceso directo al programa en el escritorio llamado claves con el atajo alt + control + c?'
 		dlg= wx.MessageDialog(None, f'{desktop}\\claves', message, wx.YES_NO | wx.ICON_QUESTION)
 		if dlg.ShowModal() == wx.ID_YES:
 			path= os.path.join(desktop, 'claves.lnk')
 			target= os.path.abspath(sys.argv[0])
 			wDir= os.getcwd()
-			shell = Dispatch('WScript.Shell')
-			shortcut = shell.CreateShortCut(path)
+			shell= Dispatch('WScript.Shell')
+			shortcut= shell.CreateShortcut(path)
 			shortcut.Targetpath = target
 			shortcut.WorkingDirectory= wDir
-			# shortcut.IconLocation= target
 			shortcut.save()
+			shortcut_key= shell.CreateShortcut(path)
+			shortcut_key.Hotkey= 'Ctrl+Alt+C'
+			shortcut_key.Save()
 
 	def passVerify(self):
 		global crypto
