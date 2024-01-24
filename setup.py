@@ -36,7 +36,7 @@ def processVerify():
 		if sp.pid != pid:
 			sp.terminate()
 
-# Función para la verbalización de mensajes a través de NVDA o JAWS
+# Función para la verbalización de mensajes a través de la api de accesibilidad
 def speak(message):
 	output.speak(message)
 
@@ -76,9 +76,7 @@ class Database():
 		return row_list
 
 	def modifyRow(self, old_service, service, user, password, extra, card):
-		self.cursor.execute('DELETE from passwords where service=?', (old_service,))
-		self.connect.commit()
-		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', (service, user, password, extra, card))
+		self.cursor.execute('UPDATE passwords SET service=?, user=?, password=?, extra=?, card=? WHERE service=?', (service, user, password, extra, card, old_service))
 		self.connect.commit()
 
 	def addRow(self, service, user, password, extra, card):
@@ -96,6 +94,7 @@ class Main(wx.Frame):
 			self.InitUI()
 			self.Show()
 
+	# Crear un acceso directo con atajo de teclado alt + control + c
 	def verifyShortcut(self):
 		if os.path.exists(os.path.join(os.environ['USERPROFILE'], 'Desktop', 'claves.lnk')): return
 		desktop= os.path.join(os.environ['USERPROFILE'], 'Desktop')
