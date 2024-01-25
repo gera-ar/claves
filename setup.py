@@ -333,7 +333,8 @@ class Main(wx.Frame):
 			event.Skip()
 
 	def getValue(self, service, column):
-		database.cursor.execute('SELECT %s FROM claves WHERE service = %s', (column, service))
+		query= f'SELECT {column} FROM claves WHERE service = %s'
+		database.cursor.execute(query, (service,))
 		value= crypto.decrypt(database.cursor.fetchall()[0][0]).decode()
 		wx.TheClipboard.SetData(wx.TextDataObject(value))
 		wx.TheClipboard.Close()

@@ -6,3 +6,4 @@ pygame==2.5.2
 pywin32==306
 winshell==0.6
 wxPython==4.2.1
+pyinstaller==6.3.0
