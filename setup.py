@@ -459,6 +459,9 @@ class PassDialog(wx.Dialog):
 processVerify()
 
 app= wx.App()
-database= Database()
-Main(None, 'Gestor de contraseñas')
-app.MainLoop()
+try:
+	database= Database()
+	Main(None, 'Gestor de contraseñas')
+	app.MainLoop()
+except:
+	speak('Error en la conexión con la base de datos')
