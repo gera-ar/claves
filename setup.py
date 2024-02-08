@@ -225,7 +225,10 @@ class Main(wx.Frame):
 			wx.MessageDialog(None, f'{service} modificado correctamente', '✌').ShowModal()
 
 	def onDelete(self, event):
-		database.cursor.execute('DELETE from passwords where service=?', (self.listbox.GetStringSelection(),))
+		selected_element= self.listbox.GetStringSelection()
+		dlg= wx.MessageDialog(None, '¿Seguro que quieres eliminar {}?'.format(selected_element), 'Atención', wx.YES_NO | wx.ICON_QUESTION)
+		if dlg.ShowModal() == wx.ID_NO: return
+		database.cursor.execute('DELETE from passwords where service=?', (selected_element,))
 		database.connect.commit()
 		current_selection= self.listbox.GetSelection()
 		if current_selection != wx.NOT_FOUND:
