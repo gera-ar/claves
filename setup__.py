@@ -1,5 +1,9 @@
-﻿import wx
-import accessible_output2.outputs.auto
+﻿# Author: Gerardo Kessler [gera.ar@yahoo.com]
+# Latest version of python tested==3.12
+
+import wx
+import ctypes
+from platform import machine
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -25,7 +29,7 @@ EXIT.set_volume(0.7)
 OK= mixer.Sound('sounds/ok.ogg')
 
 crypto= None
-output= accessible_output2.outputs.auto.Auto()
+
 # Función que verifica si el proceso tiene otras instancias abiertas, cerrando las que no coinciden con el pid del actual
 def processVerify():
 	pid= os.getpid()
@@ -36,9 +40,6 @@ def processVerify():
 		if sp.pid != pid:
 			sp.terminate()
 
-# Función para la verbalización de mensajes a través de la api de accesibilidad
-def speak(message):
-	output.speak(message)
 
 # Función que devuelve el hash de una cadena
 def getHash(string):
@@ -236,7 +237,7 @@ class Main(wx.Frame):
 			self.listbox.Delete(current_selection)
 			RECYCLE.play()
 			if self.listbox.GetCount() < 1:
-				speak('Lista vacía')
+				sp.speak('Lista vacía')
 			elif current_selection > 0:
 				self.listbox.SetSelection(current_selection-1)
 			elif current_selection == 0 and self.listbox.GetCount() > 0:
@@ -316,7 +317,7 @@ class Main(wx.Frame):
 			self.getValue(self.listbox.GetStringSelection(), 'user')
 			event.Skip()
 		elif event.ControlDown() and event.GetKeyCode() == 69:
-			speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
+			sp.speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
 			service= self.listbox.GetStringSelection()
 			database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
@@ -333,7 +334,7 @@ class Main(wx.Frame):
 		value= crypto.decrypt(database.cursor.fetchall()[0][0]).decode()
 		wx.TheClipboard.SetData(wx.TextDataObject(value))
 		wx.TheClipboard.Close()
-		speak('Copiado al portapapeles')
+		sp.speak('Copiado al portapapeles')
 
 class Dialog(wx.Dialog):
 	def __init__(self,parent, title):
@@ -451,8 +452,37 @@ class PassDialog(wx.Dialog):
 		else:
 			event.Skip()
 
-processVerify()
+if __name__ == '__main__':
+	if getattr(sys, 'frozen', False):
+		processVerify()
 
+class Speech:
+	def __init__(self):
+		try:
+			import accessible_output2.outputs.auto
+			output= accessible_output2.outputs.auto.Auto()
+			self.speak= self.accessibleOutput
+		except:
+			if machine() == 'AMD64':
+				self.nvda= ctypes.WinDLL('_internal/nvda64.dll')
+			else:
+				self.nvda= ctypes.WinDLL('_internal/nvda32.dll')
+			try:
+				self.jaws= Dispatch('freedomSci.jawsApi')
+			except pywintypes.com_error:
+				self.jaws= None
+			self.speak= self.nvdaJaws
+
+	def accessibleOutput(self, message):
+		output.speak(message)
+
+	def nvdaJaws(self, message):
+		wstr= ctypes.c_wchar_p(message)
+		self.nvda.nvdaController_speakText(wstr)
+		if self.jaws:
+			self.jaws.SayString(message)
+
+sp= Speech()
 app= wx.App()
 database= Database()
 Main(None, 'Gestor de contraseñas')
