@@ -1,5 +1,7 @@
 ﻿# Claves
 
+Versión beta
+
 [Gerardo Kessler](http://gera.ar)  
 
 Este programa es un gestor de contraseñas sencillo para Windows programado en [Python](https://python.org)  
