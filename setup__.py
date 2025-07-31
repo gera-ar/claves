@@ -1,4 +1,4 @@
-﻿# Author: Gerardo Kessler [gera.ar@yahoo.com]
+# Author: Gerardo Kessler [gera.ar@yahoo.com]
 # Latest version of python tested==3.12
 
 import wx
@@ -70,6 +70,16 @@ class Database():
 	def __init__(self):
 		self.connect= connect('_internal/database')
 		self.cursor= self.connect.cursor()
+		self.cursor.execute('''
+			CREATE TABLE IF NOT EXISTS passwords (
+				service BLOB,
+				user BLOB,
+				password BLOB,
+				extra BLOB,
+				card INTEGER
+			)
+		''')
+		self.connect.commit()
 
 	def getRowList(self):
 		self.cursor.execute('SELECT * FROM passwords ORDER BY service ASC')
@@ -81,7 +91,7 @@ class Database():
 		self.connect.commit()
 
 	def addRow(self, service, user, password, extra, card):
-		entities= (service, crypto.encrypt(user), crypto.encrypt(password), crypto.encrypt(extra), card)
+		entities= (crypto.encrypt(service), crypto.encrypt(user), crypto.encrypt(password), crypto.encrypt(extra), card)
 		self.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', entities)
 		self.connect.commit()
 
@@ -95,35 +105,15 @@ class Main(wx.Frame):
 			self.InitUI()
 			self.Show()
 
-	# Crear un acceso directo con atajo de teclado alt + control + c
-	def verifyShortcut(self):
-		if os.path.exists(os.path.join(os.environ['USERPROFILE'], 'Desktop', 'claves.lnk')): return
-		desktop= os.path.join(os.environ['USERPROFILE'], 'Desktop')
-		message= '¿Crear un acceso directo al programa en el escritorio llamado claves con el atajo alt + control + c?'
-		dlg= wx.MessageDialog(None, f'{desktop}\\claves', message, wx.YES_NO | wx.ICON_QUESTION)
-		if dlg.ShowModal() == wx.ID_YES:
-			path= os.path.join(desktop, 'claves.lnk')
-			target= os.path.abspath(sys.argv[0])
-			wDir= os.getcwd()
-			shell= Dispatch('WScript.Shell')
-			shortcut= shell.CreateShortcut(path)
-			shortcut.Targetpath = target
-			shortcut.WorkingDirectory= wDir
-			shortcut.save()
-			shortcut_key= shell.CreateShortcut(path)
-			shortcut_key.Hotkey= 'Ctrl+Alt+C'
-			shortcut_key.Save()
-
 	def passVerify(self):
 		global crypto
 		database.cursor.execute('SELECT * FROM passwords')
 		if len(database.cursor.fetchall()) == 0:
-			self.verifyShortcut()
 			new_dialog= PassDialog(self, 'Registrar contraseña de acceso', 'Ingresa una contraseña de acceso', '&Guardar y continuar', '&Cancelar', False)
 			if new_dialog.ShowModal() == wx.ID_OK:
 				new_pass= getHash(new_dialog.password_field.GetValue())
 				cipher= Fernet(b64encode(new_pass))
-				database.cursor.execute('INSERT INTO passwords VALUES(?,?,?,?,?)', ('Servicio de prueba', cipher.encrypt('gera.ar'.encode()), cipher.encrypt('1234'.encode()), cipher.encrypt('Datos extra'.encode()), 0))
+				database.cursor.execute('INSERT INTO passwords VALUES(?,?,?,?,?)', (cipher.encrypt('Servicio de prueba'.encode()), cipher.encrypt('gera.ar'.encode()), cipher.encrypt('1234'.encode()), cipher.encrypt('Datos extra'.encode()), 0))
 				database.connect.commit()
 				wx.MessageDialog(None, 'Clave guardada exitosamente. Reinicia el programa', '👍').ShowModal()
 				database.connect.close()
@@ -145,23 +135,32 @@ class Main(wx.Frame):
 			return False
 		crypto= Crypto(b64encode(user))
 		database.cursor.execute('SELECT * FROM passwords')
-		if not crypto.decrypt(database.cursor.fetchall()[0][1]):
+		if not crypto.decrypt(database.cursor.fetchall()[0][0]):
 			database.connect.close()
 			self.Destroy()
 			return False
 		OK.play()
 		return True
 
+	def update_listbox(self, select_service=None):
+		raw_data = database.getRowList()
+		decrypted_data = [(crypto.decrypt(row[0]).decode(), row) for row in raw_data]
+		decrypted_data.sort(key=lambda x: x[0])
+		self.row_list = [item[0] for item in decrypted_data]
+		self.data = [item[1] for item in decrypted_data]
+		self.listbox.Set(self.row_list)
+		if select_service and select_service in self.row_list:
+			self.listbox.SetStringSelection(select_service)
+		elif self.listbox.GetCount() > 0:
+			self.listbox.SetSelection(0)
+
 	def InitUI(self):
 		panel= wx.Panel(self)
 		vbox= wx.BoxSizer(wx.VERTICAL)
 
-		self.data= database.getRowList()
-		self.row_list= [row[0] for row in self.data]
-		self.listbox= wx.ListBox(panel, size=(200, 200), choices=self.row_list)
+		self.listbox = wx.ListBox(panel, size=(200, 200))
 		self.listbox.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
-		if len(self.row_list) > 0:
-			self.listbox.SetSelection(0)
+		self.update_listbox()
 		vbox.Add(self.listbox, wx.ID_ANY, wx.ALL | wx.EXPAND, 10)
 
 		hbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -206,42 +205,43 @@ class Main(wx.Frame):
 		open_new_tab('instrucciones.html')
 
 	def onModify(self, event):
-		service= self.listbox.GetStringSelection()
-		database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
-		row_data= database.cursor.fetchall()[0]
-		data_dialog= DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], True)
+		selection = self.listbox.GetSelection()
+		if selection == wx.NOT_FOUND:
+			return
+		row_data = self.data[selection]
+		decrypted_service = crypto.decrypt(row_data[0]).decode()
+		data_dialog= DataDialog(self, decrypted_service, decrypted_service, crypto.decrypt(row_data[1]).decode(), crypto.decrypt(row_data[2]).decode(), crypto.decrypt(row_data[3]).decode(), row_data[4], True)
 		if data_dialog.ShowModal() == wx.ID_OK:
 			service= data_dialog.service_field.GetValue()
 			if service == '':
 				wx.MessageDialog(None, 'El primer campo no puede quedar vacío. Proceso cancelado', 'Error:').ShowModal()
 				return
+			encrypted_service = crypto.encrypt(service)
 			user= crypto.encrypt(data_dialog.user_field.GetValue())
 			password= crypto.encrypt(data_dialog.password_field.GetValue())
 			extra= crypto.encrypt(data_dialog.extra_field.GetValue())
-			database.modifyRow(self.listbox.GetStringSelection(), service, user, password, extra, row_data[4])
-			index= self.listbox.GetSelection()
-			self.listbox.Delete(index)
-			self.listbox.Insert(service, index)
-			self.listbox.Refresh()
+			database.modifyRow(row_data[0], encrypted_service, user, password, extra, row_data[4])
+			
+			self.update_listbox(service)
+
+
 			wx.MessageDialog(None, f'{service} modificado correctamente', '✌').ShowModal()
 
 	def onDelete(self, event):
+		selected_index = self.listbox.GetSelection()
+		if selected_index == wx.NOT_FOUND:
+			return
 		selected_element= self.listbox.GetStringSelection()
 		dlg= wx.MessageDialog(None, '¿Seguro que quieres eliminar {}?'.format(selected_element), 'Atención', wx.YES_NO | wx.ICON_QUESTION)
 		if dlg.ShowModal() == wx.ID_NO: return
-		database.cursor.execute('DELETE from passwords where service=?', (selected_element,))
+		encrypted_service_to_delete = self.data[selected_index][0]
+		database.cursor.execute('DELETE from passwords where service=?', (encrypted_service_to_delete,))
 		database.connect.commit()
-		current_selection= self.listbox.GetSelection()
-		if current_selection != wx.NOT_FOUND:
-			self.row_list.pop(current_selection)
-			self.listbox.Delete(current_selection)
-			RECYCLE.play()
-			if self.listbox.GetCount() < 1:
-				sp.speak('Lista vacía')
-			elif current_selection > 0:
-				self.listbox.SetSelection(current_selection-1)
-			elif current_selection == 0 and self.listbox.GetCount() > 0:
-				self.listbox.SetSelection(current_selection)
+		self.update_listbox()
+		RECYCLE.play()
+		if self.listbox.GetCount() == 0:
+			sp.speak('Lista vacía')
+
 
 	def onAdd(self, event):
 		dialog= Dialog(self, 'Añadir elemento')
@@ -255,12 +255,7 @@ class Main(wx.Frame):
 			password= dialog.pass_field.GetValue()
 			extra= dialog.extra_field.GetValue()
 			database.addRow(service, user, password, extra, card)
-			self.row_list.append(service)
-			self.row_list.sort()
-			self.listbox.Clear()
-			self.listbox.InsertItems(self.row_list, 0)
-			self.listbox.SetStringSelection(service)
-			self.data= database.getRowList()
+			self.update_listbox(service)
 			ADD.play()
 
 	def onExportDb(self, event):
@@ -293,8 +288,8 @@ class Main(wx.Frame):
 			database.cursor.execute('DELETE FROM passwords')
 			database.connect.commit()
 			for row in rows:
-				old_row= (row[0], crypto.decrypt(row[1]).decode(), crypto.decrypt(row[2]).decode(), crypto.decrypt(row[3]).decode(), row[4])
-				new_row= (old_row[0], new_crypto.encrypt(old_row[1]), new_crypto.encrypt(old_row[2]), new_crypto.encrypt(old_row[3]), old_row[4])
+				old_row= (crypto.decrypt(row[0]).decode(), crypto.decrypt(row[1]).decode(), crypto.decrypt(row[2]).decode(), crypto.decrypt(row[3]).decode(), row[4])
+				new_row= (new_crypto.encrypt(old_row[0]), new_crypto.encrypt(old_row[1]), new_crypto.encrypt(old_row[2]), new_crypto.encrypt(old_row[3]), old_row[4])
 				database.cursor.execute('INSERT INTO passwords VALUES (?,?,?,?,?)', new_row)
 				database.connect.commit()
 			database.connect.close()
@@ -319,22 +314,32 @@ class Main(wx.Frame):
 		elif event.ControlDown() and event.GetKeyCode() == 69:
 			sp.speak(f'{self.listbox.GetSelection()+1} de {self.listbox.GetCount()}')
 		elif event.GetKeyCode() == wx.WXK_SPACE:
-			service= self.listbox.GetStringSelection()
-			database.cursor.execute('SELECT * FROM passwords WHERE service=?', (service,))
-			row_data= database.cursor.fetchall()[0]
-			DataDialog(self, row_data[0], row_data[0], crypto.decrypt(row_data[1]), crypto.decrypt(row_data[2]), crypto.decrypt(row_data[3]), row_data[4], False).ShowModal()
+			selection = self.listbox.GetSelection()
+			if selection == wx.NOT_FOUND:
+				return
+			row_data = self.data[selection]
+			decrypted_service = crypto.decrypt(row_data[0]).decode()
+			DataDialog(self, decrypted_service, decrypted_service, crypto.decrypt(row_data[1]).decode(), crypto.decrypt(row_data[2]).decode(), crypto.decrypt(row_data[3]).decode(), row_data[4], False).ShowModal()
 		elif event.GetKeyCode() == wx.WXK_ESCAPE:
 			self.onClose(event)
 		else:
 			event.Skip()
 
 	def getValue(self, service, column):
-		query= f'SELECT {column} FROM passwords WHERE service = ?'
-		database.cursor.execute(query, (service,))
-		value= crypto.decrypt(database.cursor.fetchall()[0][0]).decode()
-		wx.TheClipboard.SetData(wx.TextDataObject(value))
-		wx.TheClipboard.Close()
-		sp.speak('Copiado al portapapeles')
+		try:
+			index = self.row_list.index(service)
+			row_data = self.data[index]
+			col_map = {'user': 1, 'password': 2, 'extra': 3}
+			if column in col_map:
+				col_index = col_map[column]
+				value = crypto.decrypt(row_data[col_index]).decode()
+				wx.TheClipboard.SetData(wx.TextDataObject(value))
+				wx.TheClipboard.Close()
+				sp.speak('Copiado al portapapeles')
+		except ValueError:
+			# Should not happen if listbox is synced with self.row_list
+			pass
+
 
 class Dialog(wx.Dialog):
 	def __init__(self,parent, title):
@@ -460,8 +465,8 @@ class Speech:
 	def __init__(self):
 		try:
 			import accessible_output2.outputs.auto
-			output= accessible_output2.outputs.auto.Auto()
-			self.speak= self.accessibleOutput
+			self.output = accessible_output2.outputs.auto.Auto()
+			self.speak = self.accessibleOutput
 		except:
 			if machine() == 'AMD64':
 				self.nvda= ctypes.WinDLL('_internal/nvda64.dll')
@@ -471,10 +476,10 @@ class Speech:
 				self.jaws= Dispatch('freedomSci.jawsApi')
 			except pywintypes.com_error:
 				self.jaws= None
-			self.speak= self.nvdaJaws
+			sself.speak= self.nvdaJaws
 
 	def accessibleOutput(self, message):
-		output.speak(message)
+		self.output.speak(message)
 
 	def nvdaJaws(self, message):
 		wstr= ctypes.c_wchar_p(message)
